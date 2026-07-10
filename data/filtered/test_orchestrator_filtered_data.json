@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "title": "News",
+      "summary": "S",
+      "source": "reddit",
+      "url": "https://r.com/1",
+      "quality_score": 0.9,
+      "is_duplicate": false
+    }
+  ]
+}

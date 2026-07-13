@@ -104,7 +104,7 @@ def load_checkpoint(run_id: str) -> PipelineState:
     return state
 
 
-def request_validation(state: PipelineState) -> ValidationResult:
+async def request_validation(state: PipelineState) -> ValidationResult:
     """
     Tampilkan hasil pipeline dan minta keputusan ACC/REJECT dari user.
     Menggunakan ipywidgets untuk UI interaktif di notebook.
@@ -231,40 +231,51 @@ def request_validation(state: PipelineState) -> ValidationResult:
 
     def _on_decision(status: str):
         """Callback saat tombol ditekan — hanya proses sekali."""
-        nonlocal _clicked
+        try:
+            nonlocal _clicked
 
-        # Guard: abaikan klik berulang
-        if _clicked or future.done():
-            return
-        _clicked = True
+            # Log pertama untuk mengecek apakah sinyal klik berhasil masuk ke Python
+            with output:
+                display(HTML(f"<p style='color: orange;'>Memproses tombol <b>{status}</b>... Mohon tunggu.</p>"))
 
-        # Disable buttons segera
-        btn_acc.disabled = True
-        btn_reject.disabled = True
+            # Guard: abaikan klik berulang
+            if _clicked or future.done():
+                return
+            _clicked = True
 
-        validation = ValidationResult(
-            news_ref_title=news_title,
-            caption_x_approved=cb_caption_x.value,
-            caption_ig_approved=cb_caption_ig.value,
-            image_approved=cb_image.value,
-            status=status,
-            reviewer_note=note_input.value if note_input.value.strip() else None,
-        )
+            # Disable buttons segera
+            btn_acc.disabled = True
+            btn_reject.disabled = True
 
-        with output:
-            if status == "ACC":
-                display(HTML(
-                    "<p style='color: #4CAF50; font-weight: bold;'>"
-                    "✅ Konten di-APPROVE. Melanjutkan ke upload...</p>"
-                ))
-            else:
-                display(HTML(
-                    "<p style='color: #f44336; font-weight: bold;'>"
-                    "❌ Konten di-REJECT. Pipeline berhenti.</p>"
-                ))
+            validation = ValidationResult(
+                news_ref_title=news_title,
+                caption_x_approved=cb_caption_x.value,
+                caption_ig_approved=cb_caption_ig.value,
+                image_approved=cb_image.value,
+                status=status,
+                reviewer_note=note_input.value if note_input.value.strip() else None,
+            )
 
-        # Resolve future (hanya sekali)
-        future.set_result(validation)
+            with output:
+                if status == "ACC":
+                    display(HTML(
+                        "<p style='color: #4CAF50; font-weight: bold;'>"
+                        "✅ Konten di-APPROVE. Melanjutkan ke upload...</p>"
+                    ))
+                else:
+                    display(HTML(
+                        "<p style='color: #f44336; font-weight: bold;'>"
+                        "❌ Konten di-REJECT. Pipeline berhenti.</p>"
+                    ))
+
+            # Gunakan call_soon_threadsafe jika event loop berasal dari thread berbeda
+            loop.call_soon_threadsafe(future.set_result, validation)
+            
+        except Exception as e:
+            with output:
+                display(HTML(f"<p style='color: red; font-weight: bold;'>⚠️ ERROR INTERNAL PADA TOMBOL: {e}</p>"))
+            import traceback
+            traceback.print_exc()
 
     btn_acc.on_click(lambda _: _on_decision("ACC"))
     btn_reject.on_click(lambda _: _on_decision("REJECT"))
@@ -277,20 +288,9 @@ def request_validation(state: PipelineState) -> ValidationResult:
     display(widgets.HBox([btn_acc, btn_reject]))
     display(output)
 
-    # Block sampai user klik tombol — async-aware, tidak block event loop
-    result = asyncio.ensure_future(future)
-
-    # Untuk Jupyter: gunakan nest_asyncio jika tersedia, otherwise fallback
-    try:
-        import nest_asyncio
-        nest_asyncio.apply()
-        result = loop.run_until_complete(future)
-    except ImportError:
-        # Fallback: polling yang event-loop-friendly
-        import time
-        while not future.done():
-            loop.run_until_complete(asyncio.sleep(0.1))
-        result = future.result()
+    # Block menggunakan operator native await (paling stabil di Jupyter modern)
+    # Ini akan mengembalikan kendali ke kernel secara native sampai tombol diklik.
+    result = await future
 
     state.validation = result
 

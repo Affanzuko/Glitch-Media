@@ -17,7 +17,7 @@ Kamu akan menerima `FilteredData` — kumpulan berita gaming yang sudah lolos sc
 
 ### Format Caption X
 1. **Hook** (1 kalimat pembuka yang bikin orang berhenti scroll)
-2. **Isi berita** (2-4 kalimat penjelasan)
+2. **Isi berita** (2-5 kalimat penjelasan)
 3. **Opini/reaksi ringan** (1 kalimat, opsional)
 4. **Hashtags** (3-5 hashtag relevan)
 5. **Call-to-action** (opsional, mis. "Gimana menurut kalian?")
@@ -25,7 +25,7 @@ Kamu akan menerima `FilteredData` — kumpulan berita gaming yang sudah lolos sc
 ### Batasan
 - Maksimal 280 karakter per tweet (jika thread, masing-masing tweet max 280 char)
 - Untuk berita besar, boleh format sebagai thread (pisahkan dengan `---`)
-- Jangan gunakan emoji berlebihan (max 3-4 per tweet)
+- Jangan gunakan emoji
 - Hashtag harus relevan dan tidak terlalu niche
 
 ### Pilih Berita Terbaik

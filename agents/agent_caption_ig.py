@@ -7,12 +7,11 @@ Generate caption singkat untuk Instagram berdasarkan berita yang sudah difilter.
 import json
 import logging
 
-from config.schemas import FilteredData, CaptionIG
-from config.settings import load_prompt
 from tools.llm_client import call_llm
+from config.schemas import FilteredData, CaptionIG
+from config.settings import load_prompt, AGENT_CAPTION_IG_MODEL
 
 logger = logging.getLogger(__name__)
-
 
 def run(filtered_data: FilteredData) -> CaptionIG:
     """
@@ -58,6 +57,7 @@ def run(filtered_data: FilteredData) -> CaptionIG:
         system_prompt=system_prompt,
         user_message=user_message,
         response_schema=CaptionIG,
+        model=AGENT_CAPTION_IG_MODEL,
     )
 
     logger.info(f"Agent Caption IG: caption dibuat untuk '{result.news_ref_title}'")

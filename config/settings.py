@@ -16,15 +16,25 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
-ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
-LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "4096"))
+# Per-agent model configuration (override defaults per agent)
+AGENT_SCRAPING_MODEL: str = os.getenv("AGENT_SCRAPING_MODEL", "kr/glm-5")
+AGENT_SCREENING_MODEL: str = os.getenv("AGENT_SCREENING_MODEL", "kr/claude-sonnet-5")
+AGENT_CAPTION_X_MODEL: str = os.getenv("AGENT_CAPTION_X_MODEL", "ag/gemini-pro-agent")
+AGENT_CAPTION_IG_MODEL: str = os.getenv("AGENT_CAPTION_IG_MODEL", "ag/gemini-pro-agent")
+AGENT_UPLOAD_X_MODEL: str = os.getenv("AGENT_UPLOAD_X_MODEL", "kr/claude-haiku-4.5-agentic")
+AGENT_UPLOAD_IG_MODEL: str = os.getenv("AGENT_UPLOAD_IG_MODEL", "kr/claude-haiku-4.5-agentic")
+
+LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "10000"))
 LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.4"))
 
-# ── Image Generation ─────────────────────────────────────────────────────────
+# ── 9Router (Local AI Router - OpenAI-compatible) ───────────────────────────
+NINEROUTER_BASE_URL: str = os.getenv("NINEROUTER_BASE_URL", "")
+
+# ── Image Generation ────────────────────────────────────────────────────────
+AGENT_IMAGE_GEN_MODEL: str = os.getenv("AGENT_IMAGE_GEN_MODEL", "ag/gemini-pro-agent")
 IMAGE_GEN_API_KEY: str = os.getenv("IMAGE_GEN_API_KEY", "")
-IMAGE_GEN_PROVIDER: str = os.getenv("IMAGE_GEN_PROVIDER", "openai")  # openai | stability | replicate
-IMAGE_GEN_MODEL: str = os.getenv("IMAGE_GEN_MODEL", "dall-e-3")
+IMAGE_GEN_PROVIDER: str = os.getenv("IMAGE_GEN_PROVIDER") 
+IMAGE_GEN_DASHSCOPE_URL: str = os.getenv("IMAGE_GEN_DASHSCOPE_URL")
 
 # ── Twitter / X API ──────────────────────────────────────────────────────────
 TWITTER_API_KEY: str = os.getenv("TWITTER_API_KEY", "")
@@ -101,7 +111,6 @@ STEAM_APP_IDS: list[int] = [
     1172470, # Apex Legends
     1245620, # Elden Ring
 ]
-
 
 def load_prompt(filename: str) -> str:
     """Load isi file prompt dari config/prompts/."""

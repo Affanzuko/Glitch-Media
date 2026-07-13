@@ -73,12 +73,36 @@ cp .env.example .env
 | Service | Key | Cara mendapatkan |
 |---------|-----|-----------------|
 | Anthropic (Claude) | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
+| **9Router (Local AI Router)** | **`NINEROUTER_BASE_URL`** | **[9router.com](https://9router.com) (install locally via npm)** |
 | OpenAI (DALL-E) | `IMAGE_GEN_API_KEY` | [platform.openai.com](https://platform.openai.com) |
 | Twitter/X | `TWITTER_*` | [developer.twitter.com](https://developer.twitter.com) (Elevated access) |
 | Instagram | `INSTAGRAM_*` | [developers.facebook.com](https://developers.facebook.com) (Business account) |
 | Reddit | `REDDIT_*` | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) |
 | YouTube | `YOUTUBE_API_KEY` | [console.cloud.google.com](https://console.cloud.google.com) |
 | Steam | `STEAM_API_KEY` | [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) |
+
+### 2a. Konfigurasi 9Router (Opsional, untuk mengurangi biaya API)
+
+9Router adalah *local AI router* yang menghubungkan ke 60+ provider AI dengan fallback otomatis (Subscription → Cheap → Free). Ini cara menggunakannya:
+
+1. **Install 9Router globally via npm:**
+   ```bash
+   npm install -g 9router
+   ```
+
+2. **Start 9Router (akan berjalan di localhost:20128):**
+   ```bash
+   9router
+   ```
+
+3. **Konfigurasi API credentials di dashboard:**
+   Buka [http://localhost:20128/dashboard](http://localhost:20128/dashboard) dan masukkan API keys provider Anda.
+
+4. **Tambahkan ke `.env`:**
+   ```env
+   NINEROUTER_BASE_URL=http://localhost:20128/v1
+   ```
+   **Catatan:** Jika `NINEROUTER_BASE_URL` diisi, pipeline akan menggunakan 9router. Jika kosong, akan langsung ke Anthropic API (biaya lebih tinggi).
 
 ### 3. Jalankan
 

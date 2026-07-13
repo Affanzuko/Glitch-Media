@@ -7,9 +7,9 @@ Filter berita mentah: deduplikasi + quality scoring via LLM.
 import json
 import logging
 
-from config.schemas import RawData, FilteredData, FilteredItem
-from config.settings import load_prompt, QUALITY_THRESHOLD
 from tools.llm_client import call_llm
+from config.schemas import RawData, FilteredData, FilteredItem
+from config.settings import load_prompt, QUALITY_THRESHOLD, AGENT_SCREENING_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ def run(raw_data: RawData) -> FilteredData:
         system_prompt=system_prompt,
         user_message=user_message,
         response_schema=FilteredData,
+        model=AGENT_SCREENING_MODEL,
     )
 
     # Post-processing: filter berdasarkan threshold dan duplikat

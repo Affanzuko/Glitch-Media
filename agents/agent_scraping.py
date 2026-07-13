@@ -8,7 +8,6 @@ import logging
 from datetime import datetime, timezone
 
 from config.schemas import RawData, RawItem
-from config.settings import load_prompt
 from tools.scrapers import (
     reddit_scraper,
     twitter_scraper,

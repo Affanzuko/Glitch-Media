@@ -7,9 +7,9 @@ Buat prompt image generation dari caption IG, lalu generate gambar.
 import json
 import logging
 
-from config.schemas import CaptionIG, ImageGenResult
-from config.settings import load_prompt
 from tools.llm_client import call_llm
+from config.schemas import CaptionIG, ImageGenResult
+from config.settings import load_prompt, AGENT_IMAGE_GEN_MODEL
 from tools.image_gen_client import generate_image
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ def run(caption_ig: CaptionIG, run_id: str = "") -> ImageGenResult:
         system_prompt=system_prompt,
         user_message=user_message,
         response_schema=ImageGenResult,
+        model=AGENT_IMAGE_GEN_MODEL,
     )
 
     logger.info(f"Agent Image Gen: image prompt = '{llm_result.image_prompt[:100]}...'")

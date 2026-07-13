@@ -117,6 +117,7 @@ def request_validation(state: PipelineState) -> ValidationResult:
     Returns:
         ValidationResult berisi keputusan user.
     """
+    from ipykernel.comm import Comm
     import asyncio
 
     # ── Tampilkan Preview ──────────────────────────────────────────────────
@@ -195,15 +196,26 @@ def request_validation(state: PipelineState) -> ValidationResult:
     # Output area for status
     output = widgets.Output()
 
-    # Result container (mutable, untuk diisi oleh callback)
-    result_container: dict[str, ValidationResult | None] = {"result": None}
+    # Flag untuk mencegah multiple clicks
+    _clicked = False
 
-    # Event loop untuk blocking
-    loop = asyncio.new_event_loop()
+    # Gunakan event loop Jupyter yang sudah ada
+    loop = asyncio.get_event_loop()
     future = loop.create_future()
 
     def _on_decision(status: str):
-        """Callback saat tombol ditekan."""
+        """Callback saat tombol ditekan — hanya proses sekali."""
+        nonlocal _clicked
+
+        # Guard: abaikan klik berulang
+        if _clicked or future.done():
+            return
+        _clicked = True
+
+        # Disable buttons segera
+        btn_acc.disabled = True
+        btn_reject.disabled = True
+
         validation = ValidationResult(
             news_ref_title=news_title,
             caption_x_approved=cb_caption_x.value,
@@ -212,7 +224,6 @@ def request_validation(state: PipelineState) -> ValidationResult:
             status=status,
             reviewer_note=note_input.value if note_input.value.strip() else None,
         )
-        result_container["result"] = validation
 
         with output:
             if status == "ACC":
@@ -226,13 +237,8 @@ def request_validation(state: PipelineState) -> ValidationResult:
                     "❌ Konten di-REJECT. Pipeline berhenti.</p>"
                 ))
 
-        # Disable buttons
-        btn_acc.disabled = True
-        btn_reject.disabled = True
-
-        # Resolve future
-        if not future.done():
-            loop.call_soon_threadsafe(future.set_result, validation)
+        # Resolve future (hanya sekali)
+        future.set_result(validation)
 
     btn_acc.on_click(lambda _: _on_decision("ACC"))
     btn_reject.on_click(lambda _: _on_decision("REJECT"))
@@ -245,13 +251,21 @@ def request_validation(state: PipelineState) -> ValidationResult:
     display(widgets.HBox([btn_acc, btn_reject]))
     display(output)
 
-    # Block sampai user klik tombol
-    # Menggunakan polling sederhana karena ipywidgets callback
-    import time
-    while result_container["result"] is None:
-        time.sleep(0.5)
+    # Block sampai user klik tombol — async-aware, tidak block event loop
+    result = asyncio.ensure_future(future)
 
-    result = result_container["result"]
+    # Untuk Jupyter: gunakan nest_asyncio jika tersedia, otherwise fallback
+    try:
+        import nest_asyncio
+        nest_asyncio.apply()
+        result = loop.run_until_complete(future)
+    except ImportError:
+        # Fallback: polling yang event-loop-friendly
+        import time
+        while not future.done():
+            loop.run_until_complete(asyncio.sleep(0.1))
+        result = future.result()
+
     state.validation = result
 
     logger.info(
@@ -261,3 +275,4 @@ def request_validation(state: PipelineState) -> ValidationResult:
     )
 
     return result
+

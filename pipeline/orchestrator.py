@@ -12,6 +12,7 @@ Setiap fungsi:
 
 import json
 import logging
+import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,7 @@ from config.settings import (
     RAW_DIR,
     FILTERED_DIR,
     CAPTIONS_DIR,
+    DATA_DIR,
 )
 from pipeline.state import PipelineState
 
@@ -113,11 +115,48 @@ def run_stage_3_fork(state: PipelineState) -> PipelineState:
     if state.filtered_data is None:
         raise ValueError("Stage 3 membutuhkan filtered_data (jalankan stage 1-2 dulu)")
 
+    # ── LOGIKA PEMILIHAN BERITA (RANDOM & CEK HISTORI) ──
+    history_file = DATA_DIR / "history.json"
+    history = []
+    if history_file.exists():
+        try:
+            history = json.loads(history_file.read_text(encoding="utf-8"))
+        except Exception:
+            history = []
+
+    # Filter item yang URL atau judulnya belum ada di history
+    available_items = [
+        item for item in state.filtered_data.items 
+        if item.url not in history and item.title not in history
+    ]
+
+    if not available_items:
+        _log(state, "⚠️ Semua berita sudah pernah diposting (ada di histori). Mengambil secara acak dari semua data hasil filter sebagai fallback.")
+        available_items = state.filtered_data.items
+
+    if not available_items:
+        raise ValueError("Tidak ada berita yang tersedia untuk diproses.")
+
+    # Pilih 1 berita secara acak
+    selected_item = random.choice(available_items)
+    _log(state, f"Berita terpilih (Acak): {selected_item.title}")
+
+    # Simpan ke history
+    history.append(selected_item.url)
+    history.append(selected_item.title) # Simpan judul juga untuk amannya
+    history_file.write_text(json.dumps(history, indent=2), encoding="utf-8")
+
+    # Buat state FilteredData baru yang HANYA berisi 1 berita terpilih
+    # agar agen caption X dan IG membuat caption dari berita yang sama
+    from config.schemas import FilteredData
+    selected_filtered_data = FilteredData(items=[selected_item])
+
     errors: dict[str, Exception] = {}
 
     with ThreadPoolExecutor(max_workers=2) as ex:
-        fx = ex.submit(agent_caption_x.run, state.filtered_data)
-        fig = ex.submit(agent_caption_ig.run, state.filtered_data)
+        # Kirim HANYA 1 berita terpilih ke kedua agen
+        fx = ex.submit(agent_caption_x.run, selected_filtered_data)
+        fig = ex.submit(agent_caption_ig.run, selected_filtered_data)
 
         # Ambil hasil Caption X
         try:

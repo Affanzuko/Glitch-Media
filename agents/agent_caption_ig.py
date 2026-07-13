@@ -47,8 +47,8 @@ def run(filtered_data: FilteredData) -> CaptionIG:
         })
 
     user_message = (
-        f"Berikut adalah {len(items_data)} berita gaming yang sudah lolos screening. "
-        f"Pilih 1 berita terbaik dan buatkan caption untuk Instagram.\n\n"
+        f"Berikut adalah berita gaming yang telah terpilih. "
+        f"Buatkan caption yang eye-catching untuk Instagram berdasarkan berita ini.\n\n"
         f"Data:\n{json.dumps(items_data, ensure_ascii=False, indent=2)}"
     )
 

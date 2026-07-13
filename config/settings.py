@@ -24,6 +24,8 @@ AGENT_CAPTION_IG_MODEL: str = os.getenv("AGENT_CAPTION_IG_MODEL", "ag/gemini-pro
 AGENT_UPLOAD_X_MODEL: str = os.getenv("AGENT_UPLOAD_X_MODEL", "kr/claude-haiku-4.5-agentic")
 AGENT_UPLOAD_IG_MODEL: str = os.getenv("AGENT_UPLOAD_IG_MODEL", "kr/claude-haiku-4.5-agentic")
 
+AGENT_IMAGE_GEN_MODEL: str = os.getenv("AGENT_IMAGE_GEN_MODEL")
+
 LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "10000"))
 LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.4"))
 
@@ -31,9 +33,8 @@ LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.4"))
 NINEROUTER_BASE_URL: str = os.getenv("NINEROUTER_BASE_URL", "")
 
 # ── Image Generation ────────────────────────────────────────────────────────
-AGENT_IMAGE_GEN_MODEL: str = os.getenv("AGENT_IMAGE_GEN_MODEL", "ag/gemini-pro-agent")
-IMAGE_GEN_API_KEY: str = os.getenv("IMAGE_GEN_API_KEY", "")
-IMAGE_GEN_PROVIDER: str = os.getenv("IMAGE_GEN_PROVIDER") 
+IMAGE_GEN_MODEL: str = os.getenv("IMAGE_GEN_MODEL")
+IMAGE_GEN_API_KEY: str = os.getenv("IMAGE_GEN_API_KEY")
 IMAGE_GEN_DASHSCOPE_URL: str = os.getenv("IMAGE_GEN_DASHSCOPE_URL")
 
 # ── Twitter / X API ──────────────────────────────────────────────────────────
@@ -105,9 +106,9 @@ GAMING_NEWS_FEEDS: list[str] = [
 
 # ── Steam App IDs to monitor ──────────────────────────────────────────────────
 STEAM_APP_IDS: list[int] = [
-    730,     # CS2
     570,     # Dota 2
     440,     # TF2
+    730,     # CS2
     1172470, # Apex Legends
     1245620, # Elden Ring
 ]

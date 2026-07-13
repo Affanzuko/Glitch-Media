@@ -181,17 +181,43 @@ def request_validation(state: PipelineState) -> ValidationResult:
         layout=widgets.Layout(width="100%", height="60px"),
     )
 
+    # Tampilan Tombol yang Clean & Rounded
+    display(HTML("""
+    <style>
+        .clean-btn {
+            border-radius: 24px !important;
+            border: none !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+            font-weight: bold !important;
+            font-family: 'Segoe UI', system-ui, sans-serif !important;
+            transition: all 0.2s ease !important;
+            font-size: 14px !important;
+        }
+        .clean-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.15) !important;
+        }
+        .clean-btn:active {
+            transform: translateY(0px) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+    </style>
+    """))
+
     # Buttons
     btn_acc = widgets.Button(
         description="✅ ACC (Approve)",
         button_style="success",
-        layout=widgets.Layout(width="200px", height="40px"),
+        layout=widgets.Layout(width="200px", height="45px", margin="0 15px 0 0"),
     )
+    btn_acc.add_class("clean-btn")
+    
     btn_reject = widgets.Button(
         description="❌ REJECT",
         button_style="danger",
-        layout=widgets.Layout(width="200px", height="40px"),
+        layout=widgets.Layout(width="200px", height="45px"),
     )
+    btn_reject.add_class("clean-btn")
 
     # Output area for status
     output = widgets.Output()

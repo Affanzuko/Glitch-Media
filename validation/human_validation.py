@@ -104,12 +104,12 @@ def load_checkpoint(run_id: str) -> PipelineState:
     return state
 
 
-async def request_validation(state: PipelineState) -> ValidationResult:
+def request_validation(state: PipelineState) -> ValidationResult:
     """
     Tampilkan hasil pipeline dan minta keputusan ACC/REJECT dari user.
-    Menggunakan ipywidgets untuk UI interaktif di notebook.
+    Menggunakan input() — paling stabil di VS Code notebook.
 
-    Pipeline BERHENTI di sini sampai user menekan tombol.
+    Pipeline BERHENTI di sini sampai user mengetik keputusan.
 
     Args:
         state: PipelineState dengan caption_x, caption_ig, dan image_result terisi.
@@ -117,8 +117,6 @@ async def request_validation(state: PipelineState) -> ValidationResult:
     Returns:
         ValidationResult berisi keputusan user.
     """
-    from ipykernel.comm import Comm
-    import asyncio
 
     # ── Tampilkan Preview ──────────────────────────────────────────────────
 
@@ -168,131 +166,48 @@ async def request_validation(state: PipelineState) -> ValidationResult:
         except Exception as e:
             display(HTML(f"<p style='color: #f44336;'>⚠️ Gagal menampilkan gambar: {e}</p>"))
 
-    # ── Widget ACC/REJECT ────────────────────────────────────────────────
+    # ── Input ACC/REJECT via input() ─────────────────────────────────────
 
-    # Checkboxes untuk approval granular
-    cb_caption_x = widgets.Checkbox(value=True, description="Caption X", indent=False)
-    cb_caption_ig = widgets.Checkbox(value=True, description="Caption IG", indent=False)
-    cb_image = widgets.Checkbox(value=True, description="Image", indent=False)
+    display(HTML("<hr>"))
+    print("=" * 50)
+    print("📋 KEPUTUSAN VALIDASI")
+    print("=" * 50)
+    print("  Ketik 'ACC'    → Approve semua konten")
+    print("  Ketik 'REJECT' → Tolak konten")
+    print("=" * 50)
 
-    # Note textarea
-    note_input = widgets.Textarea(
-        placeholder="Catatan reviewer (opsional)...",
-        layout=widgets.Layout(width="100%", height="60px"),
+    # Loop sampai input valid
+    while True:
+        decision = input("🔸 Keputusan (ACC/REJECT): ").strip().upper()
+        if decision in ("ACC", "REJECT"):
+            break
+        print(f"  ⚠️ Input '{decision}' tidak valid. Ketik ACC atau REJECT.")
+
+    # Catatan reviewer (opsional)
+    note = input("📝 Catatan reviewer (kosongkan jika tidak ada): ").strip()
+
+    result = ValidationResult(
+        news_ref_title=news_title,
+        caption_x_approved=True,
+        caption_ig_approved=True,
+        image_approved=True,
+        status=decision,
+        reviewer_note=note if note else None,
     )
-
-    # Tampilan Tombol yang Clean & Rounded
-    display(HTML("""
-    <style>
-        .clean-btn {
-            border-radius: 24px !important;
-            border: none !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-            font-weight: bold !important;
-            font-family: 'Segoe UI', system-ui, sans-serif !important;
-            transition: all 0.2s ease !important;
-            font-size: 14px !important;
-        }
-        .clean-btn:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 6px 10px rgba(0,0,0,0.15) !important;
-        }
-        .clean-btn:active {
-            transform: translateY(0px) !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-        }
-    </style>
-    """))
-
-    # Buttons
-    btn_acc = widgets.Button(
-        description="✅ ACC (Approve)",
-        button_style="success",
-        layout=widgets.Layout(width="200px", height="45px", margin="0 15px 0 0"),
-    )
-    btn_acc.add_class("clean-btn")
-    
-    btn_reject = widgets.Button(
-        description="❌ REJECT",
-        button_style="danger",
-        layout=widgets.Layout(width="200px", height="45px"),
-    )
-    btn_reject.add_class("clean-btn")
-
-    # Output area for status
-    output = widgets.Output()
-
-    # Flag untuk mencegah multiple clicks
-    _clicked = False
-
-    # Gunakan event loop Jupyter yang sudah ada
-    loop = asyncio.get_event_loop()
-    future = loop.create_future()
-
-    def _on_decision(status: str):
-        """Callback saat tombol ditekan — hanya proses sekali."""
-        try:
-            nonlocal _clicked
-
-            # Log pertama untuk mengecek apakah sinyal klik berhasil masuk ke Python
-            with output:
-                display(HTML(f"<p style='color: orange;'>Memproses tombol <b>{status}</b>... Mohon tunggu.</p>"))
-
-            # Guard: abaikan klik berulang
-            if _clicked or future.done():
-                return
-            _clicked = True
-
-            # Disable buttons segera
-            btn_acc.disabled = True
-            btn_reject.disabled = True
-
-            validation = ValidationResult(
-                news_ref_title=news_title,
-                caption_x_approved=cb_caption_x.value,
-                caption_ig_approved=cb_caption_ig.value,
-                image_approved=cb_image.value,
-                status=status,
-                reviewer_note=note_input.value if note_input.value.strip() else None,
-            )
-
-            with output:
-                if status == "ACC":
-                    display(HTML(
-                        "<p style='color: #4CAF50; font-weight: bold;'>"
-                        "✅ Konten di-APPROVE. Melanjutkan ke upload...</p>"
-                    ))
-                else:
-                    display(HTML(
-                        "<p style='color: #f44336; font-weight: bold;'>"
-                        "❌ Konten di-REJECT. Pipeline berhenti.</p>"
-                    ))
-
-            # Gunakan call_soon_threadsafe jika event loop berasal dari thread berbeda
-            loop.call_soon_threadsafe(future.set_result, validation)
-            
-        except Exception as e:
-            with output:
-                display(HTML(f"<p style='color: red; font-weight: bold;'>⚠️ ERROR INTERNAL PADA TOMBOL: {e}</p>"))
-            import traceback
-            traceback.print_exc()
-
-    btn_acc.on_click(lambda _: _on_decision("ACC"))
-    btn_reject.on_click(lambda _: _on_decision("REJECT"))
-
-    # Display widgets
-    display(HTML("<hr><b>📋 Approval:</b>"))
-    display(widgets.HBox([cb_caption_x, cb_caption_ig, cb_image]))
-    display(HTML("<b>📝 Catatan:</b>"))
-    display(note_input)
-    display(widgets.HBox([btn_acc, btn_reject]))
-    display(output)
-
-    # Block menggunakan operator native await (paling stabil di Jupyter modern)
-    # Ini akan mengembalikan kendali ke kernel secara native sampai tombol diklik.
-    result = await future
 
     state.validation = result
+
+    # Tampilkan konfirmasi
+    if decision == "ACC":
+        display(HTML(
+            "<p style='color: #4CAF50; font-weight: bold; font-size: 16px;'>"
+            "✅ Konten di-APPROVE. Melanjutkan ke upload...</p>"
+        ))
+    else:
+        display(HTML(
+            "<p style='color: #f44336; font-weight: bold; font-size: 16px;'>"
+            "❌ Konten di-REJECT. Pipeline berhenti.</p>"
+        ))
 
     logger.info(
         f"Validation result: {result.status} "

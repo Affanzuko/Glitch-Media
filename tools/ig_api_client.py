@@ -1,6 +1,9 @@
 """
 tools/ig_api_client.py
 Wrapper posting ke Instagram (Graph API).
+Mendukung 2 mode autentikasi:
+  1. OAuth token (dari login via browser) — prioritas utama
+  2. Static token dari .env — fallback
 Flow: Create media container → Publish container.
 Retry + exponential backoff + step/attempt budget.
 """
@@ -21,6 +24,40 @@ from config.settings import (
 logger = logging.getLogger(__name__)
 
 GRAPH_API_BASE = "https://graph.facebook.com/v18.0"
+
+
+def _get_credentials() -> tuple[str, str]:
+    """
+    Ambil access token dan business account ID.
+    Prioritas: OAuth token (dari login) > static token (.env).
+
+    Returns:
+        Tuple (access_token, business_account_id).
+
+    Raises:
+        RuntimeError: Jika tidak ada kredensial.
+    """
+    from tools.oauth_manager import load_tokens, is_token_valid
+
+    # Cek OAuth token dulu
+    if is_token_valid("ig"):
+        token_data = load_tokens("ig")
+        if token_data:
+            access_token = token_data.get("access_token")
+            account_id = token_data.get("ig_business_account_id")
+            if access_token and account_id:
+                logger.debug("Using OAuth token for IG")
+                return access_token, account_id
+
+    # Fallback ke static token
+    if INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_BUSINESS_ACCOUNT_ID:
+        logger.debug("Using static token for IG")
+        return INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_BUSINESS_ACCOUNT_ID
+
+    raise RuntimeError(
+        "Tidak ada kredensial Instagram. "
+        "Login via OAuth (tools.oauth_server.login_ig()) atau set token di .env"
+    )
 
 
 def post_image(
@@ -53,6 +90,7 @@ def post_image(
 
 def _create_container(image_url: str, caption: str) -> str:
     """Create media container di Instagram."""
+    access_token, account_id = _get_credentials()
     last_error: Exception | None = None
 
     for attempt in range(1, MAX_RETRIES + 1):
@@ -60,11 +98,11 @@ def _create_container(image_url: str, caption: str) -> str:
             logger.info(f"IG create container attempt {attempt}/{MAX_RETRIES}")
 
             response = requests.post(
-                f"{GRAPH_API_BASE}/{INSTAGRAM_BUSINESS_ACCOUNT_ID}/media",
+                f"{GRAPH_API_BASE}/{account_id}/media",
                 params={
                     "image_url": image_url,
                     "caption": caption,
-                    "access_token": INSTAGRAM_ACCESS_TOKEN,
+                    "access_token": access_token,
                 },
                 timeout=30,
             )
@@ -103,6 +141,7 @@ def _create_container(image_url: str, caption: str) -> str:
 
 def _publish_container(container_id: str) -> dict:
     """Publish media container ke Instagram feed."""
+    access_token, account_id = _get_credentials()
     last_error: Exception | None = None
 
     # Tunggu sebentar agar container siap (IG best practice)
@@ -113,10 +152,10 @@ def _publish_container(container_id: str) -> dict:
             logger.info(f"IG publish attempt {attempt}/{MAX_RETRIES}")
 
             response = requests.post(
-                f"{GRAPH_API_BASE}/{INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish",
+                f"{GRAPH_API_BASE}/{account_id}/media_publish",
                 params={
                     "creation_id": container_id,
-                    "access_token": INSTAGRAM_ACCESS_TOKEN,
+                    "access_token": access_token,
                 },
                 timeout=30,
             )

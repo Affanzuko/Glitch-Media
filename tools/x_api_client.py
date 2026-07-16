@@ -1,6 +1,9 @@
 """
 tools/x_api_client.py
 Wrapper posting ke X (Twitter API v2) — menggunakan tweepy.
+Mendukung 2 mode autentikasi:
+  1. OAuth 2.0 User Token (dari login via browser) — prioritas utama
+  2. OAuth 1.0a static keys (dari .env) — fallback
 Retry + exponential backoff + step/attempt budget.
 """
 
@@ -22,22 +25,61 @@ logger = logging.getLogger(__name__)
 
 # Singleton client instance
 _client = None
+_client_mode = None  # 'oauth2_user' atau 'oauth1'
 
 
 def _get_client():
-    """Lazy-init Tweepy Client dengan OAuth 1.0a (untuk posting)."""
+    """
+    Lazy-init Tweepy Client.
+    Prioritas: OAuth 2.0 user token (dari login) > OAuth 1.0a static keys (.env).
+    """
     import tweepy
+    from tools.oauth_manager import get_access_token
 
-    global _client
-    if _client is None:
+    global _client, _client_mode
+
+    # Cek apakah ada OAuth 2.0 user token
+    oauth2_token = get_access_token("x")
+
+    if oauth2_token:
+        # Jika client belum ada atau mode berubah, buat ulang
+        if _client is None or _client_mode != "oauth2_user":
+            _client = tweepy.Client(
+                bearer_token=oauth2_token,
+                consumer_key=TWITTER_API_KEY or None,
+                consumer_secret=TWITTER_API_SECRET or None,
+            )
+            # Tweepy Client perlu access_token untuk posting via OAuth 2.0
+            # Gunakan OAuth 2.0 User Context
+            _client = tweepy.Client(oauth2_token)
+            _client_mode = "oauth2_user"
+            logger.info("X client initialized with OAuth 2.0 user token")
+        return _client
+
+    # Fallback ke OAuth 1.0a static keys
+    if _client is None or _client_mode != "oauth1":
+        if not TWITTER_API_KEY:
+            raise RuntimeError(
+                "Tidak ada kredensial X/Twitter. "
+                "Login via OAuth (tools.oauth_server.login_x()) atau set API keys di .env"
+            )
         _client = tweepy.Client(
-            bearer_token=TWITTER_BEARER_TOKEN,
+            bearer_token=TWITTER_BEARER_TOKEN or None,
             consumer_key=TWITTER_API_KEY,
             consumer_secret=TWITTER_API_SECRET,
             access_token=TWITTER_ACCESS_TOKEN,
             access_token_secret=TWITTER_ACCESS_SECRET,
         )
+        _client_mode = "oauth1"
+        logger.info("X client initialized with OAuth 1.0a static keys")
     return _client
+
+
+def reset_client():
+    """Reset client agar di-reinitialize pada panggilan berikutnya."""
+    global _client, _client_mode
+    _client = None
+    _client_mode = None
 
 
 def post_tweet(text: str) -> dict:

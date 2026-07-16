@@ -66,9 +66,6 @@ REDDIT_CLIENT_ID: str = os.getenv("REDDIT_CLIENT_ID", "")
 REDDIT_CLIENT_SECRET: str = os.getenv("REDDIT_CLIENT_SECRET", "")
 REDDIT_USER_AGENT: str = os.getenv("REDDIT_USER_AGENT", "glitch-media-agent/1.0")
 
-# ── YouTube Data API ─────────────────────────────────────────────────────────
-YOUTUBE_API_KEY: str = os.getenv("YOUTUBE_API_KEY", "")
-
 # ── Steam Web API ─────────────────────────────────────────────────────────────
 STEAM_API_KEY: str = os.getenv("STEAM_API_KEY", "")
 
@@ -96,7 +93,6 @@ QUALITY_THRESHOLD: float = float(os.getenv("QUALITY_THRESHOLD", "0.6"))
 DEFAULT_SOURCES: list[str] = [
     "reddit",
     "twitter",
-    "youtube",
     "steam",
     "gaming_news",
 ]

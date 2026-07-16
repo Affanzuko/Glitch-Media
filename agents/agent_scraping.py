@@ -11,7 +11,6 @@ from config.schemas import RawData, RawItem
 from tools.scrapers import (
     reddit_scraper,
     twitter_scraper,
-    youtube_scraper,
     steam_news_scraper,
     gaming_site_scraper,
 )
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 SCRAPER_REGISTRY: dict = {
     "reddit": reddit_scraper,
     "twitter": twitter_scraper,
-    "youtube": youtube_scraper,
     "steam": steam_news_scraper,
     "gaming_news": gaming_site_scraper,
 }

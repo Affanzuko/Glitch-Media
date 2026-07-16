@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glitch Media - System Configurations</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">G</div>
+      <div class="brand-text">
+        <h2>Glitch Media</h2>
+        <p>AI Automation Hub</p>
+      </div>
+    </div>
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a href="dashboard.html" class="nav-link">DASHBOARD</a>
+      </li>
+      <li class="nav-item">
+        <a href="history.html" class="nav-link">HISTORY</a>
+      </li>
+      <li class="nav-item">
+        <a href="settings.html" class="nav-link active">SETTINGS</a>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <a href="#" class="nav-link" style="font-size: 0.8rem;">Documentation</a>
+      <a href="#" class="nav-link" style="font-size: 0.8rem;">Support</a>
+      <button class="btn-emergency">&#9888; EMERGENCY STOP</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <header style="margin-bottom: 2rem;">
+      <h1 class="text-purple" style="color: white;">System Configurations</h1>
+      <p class="text-muted">Manage API integrations, core settings, and profile identity.</p>
+    </header>
+
+    <div class="settings-grid">
+      <!-- Operator Profile -->
+      <div class="panel">
+        <h3 class="text-muted" style="font-size: 0.9rem; text-transform: uppercase; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span class="text-purple">●</span> Operator Profile
+        </h3>
+        
+        <div class="profile-avatar">
+          <div style="width: 100%; height: 100%; background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 3rem;">&#128126;</span>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Callsign</label>
+          <input type="text" class="form-control" value="GlitchOperator_01">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Clearance Level</label>
+          <input type="text" class="form-control" value="Admin / Tier 1" readonly style="color: var(--text-muted); opacity: 0.7;">
+        </div>
+      </div>
+
+      <!-- API Integrations -->
+      <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+          <h3 class="text-muted" style="font-size: 0.9rem; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem;">
+            <span class="text-cyan">●</span> API Integrations
+          </h3>
+          <span class="status-indicator connected" style="font-size: 0.75rem; letter-spacing: 1px; text-transform: uppercase;">System Secure</span>
+        </div>
+
+        <div class="api-item">
+          <div class="api-header">
+            <span style="font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
+              🤖 OpenAI
+            </span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <span class="badge badge-success" style="border: 1px solid rgba(0,255,136,0.3); background: transparent;">Connected</span>
+              <span style="color: var(--text-muted);">⚡</span>
+            </div>
+          </div>
+          <div class="input-with-icon">
+            <input type="password" class="form-control" value="sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxx">
+            <span class="icon">&#128065;</span>
+          </div>
+        </div>
+
+        <div class="api-item">
+          <div class="api-header">
+            <span style="font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
+              🧠 Anthropic
+            </span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <span class="badge badge-success" style="border: 1px solid rgba(0,255,136,0.3); background: transparent;">Connected</span>
+              <span style="color: var(--text-muted);">⚡</span>
+            </div>
+          </div>
+          <div class="input-with-icon">
+            <input type="password" class="form-control" value="sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxx">
+            <span class="icon">&#128065;</span>
+          </div>
+        </div>
+
+        <div class="api-item">
+          <div class="api-header">
+            <span style="font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
+              🔌 9Router
+            </span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <span class="badge badge-failed" style="border: 1px solid rgba(255,51,102,0.3); background: transparent; color: var(--text-muted);">Offline</span>
+              <span style="color: var(--text-muted);">⚡</span>
+            </div>
+          </div>
+          <div class="input-with-icon">
+            <input type="password" class="form-control" placeholder="Enter API Key">
+            <span class="icon">&#128065;</span>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+      <button class="btn btn-primary" style="background: linear-gradient(135deg, #e0aaff, var(--accent-cyan)); color: #000; font-weight: bold;">SAVE CONFIGURATION</button>
+    </div>
+
+  </main>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

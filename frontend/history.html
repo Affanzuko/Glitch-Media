@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glitch Media - Publish History</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">G</div>
+      <div class="brand-text">
+        <h2>Glitch Media</h2>
+        <p>AI Automation Hub</p>
+      </div>
+    </div>
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a href="dashboard.html" class="nav-link">DASHBOARD</a>
+      </li>
+      <li class="nav-item">
+        <a href="history.html" class="nav-link active">HISTORY</a>
+      </li>
+      <li class="nav-item">
+        <a href="settings.html" class="nav-link">SETTINGS</a>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <a href="#" class="nav-link" style="font-size: 0.8rem;">Documentation</a>
+      <a href="#" class="nav-link" style="font-size: 0.8rem;">Support</a>
+      <button class="btn-emergency">&#9888; EMERGENCY STOP</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <header style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <h1 class="text-purple" style="color: white;">Publish History</h1>
+        <p class="text-muted">System Log // Transmission Records</p>
+      </div>
+      
+      <div style="display: flex; gap: 1rem;">
+        <select class="form-control" style="width: auto; background: var(--bg-dark);">
+          <option>All Platforms</option>
+          <option>X (Twitter)</option>
+          <option>Instagram</option>
+        </select>
+        <input type="date" class="form-control" style="width: auto; background: var(--bg-dark);">
+        <button class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent-cyan), #aeeef5); color: #000; font-weight: bold;">EXPORT LOG</button>
+      </div>
+    </header>
+
+    <div class="panel" style="padding: 0; overflow: hidden;">
+      <table class="history-table">
+        <thead style="background: rgba(255,255,255,0.02);">
+          <tr>
+            <th>Date / Time</th>
+            <th>Payload Title</th>
+            <th>Target</th>
+            <th>Status</th>
+            <th>Diagnostics</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div style="font-weight: 500;">2026-07-16</div>
+              <div class="text-muted" style="font-size: 0.75rem;">14:05:00 UTC</div>
+            </td>
+            <td style="font-weight: 500;">Protocol_Alpha_Launch_Seq</td>
+            <td class="text-muted">Platform X</td>
+            <td><span class="badge badge-success">● SUCCESS</span></td>
+            <td class="text-muted" style="font-size: 0.8rem;">TX_OK. 0ms latency.</td>
+            <td><span style="color: var(--text-muted); cursor: pointer;">&gt;</span></td>
+          </tr>
+          <tr>
+            <td>
+              <div style="font-weight: 500;">2026-07-16</div>
+              <div class="text-muted" style="font-size: 0.75rem;">11:22:15 UTC</div>
+            </td>
+            <td style="font-weight: 500;">Visual_Asset_Promo_04</td>
+            <td class="text-muted">Instagram</td>
+            <td><span class="badge badge-failed">● FAILED</span></td>
+            <td style="color: var(--accent-red); font-size: 0.8rem;">ERR_API_TIMEOUT: Connection dropped</td>
+            <td><span style="color: var(--text-muted); cursor: pointer;">&gt;</span></td>
+          </tr>
+          <tr>
+            <td>
+              <div style="font-weight: 500;">2026-07-15</div>
+              <div class="text-muted" style="font-size: 0.75rem;">09:00:00 UTC</div>
+            </td>
+            <td style="font-weight: 500;">Weekly_Syndicate_Update</td>
+            <td class="text-muted">Platform X</td>
+            <td><span class="badge badge-success">● SUCCESS</span></td>
+            <td class="text-muted" style="font-size: 0.8rem;">TX_OK. 12ms latency.</td>
+            <td><span style="color: var(--text-muted); cursor: pointer;">&gt;</span></td>
+          </tr>
+          <tr>
+            <td>
+              <div style="font-weight: 500;">2026-07-14</div>
+              <div class="text-muted" style="font-size: 0.75rem;">18:45:30 UTC</div>
+            </td>
+            <td style="font-weight: 500;">Merch_Drop_Announce_V2</td>
+            <td class="text-muted">Platform X</td>
+            <td><span class="badge badge-failed">● FAILED</span></td>
+            <td style="color: var(--accent-red); font-size: 0.8rem;">ERR_MEDIA_FORMAT: Invalid codec</td>
+            <td><span style="color: var(--text-muted); cursor: pointer;">&gt;</span></td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+        <span class="text-muted" style="font-size: 0.8rem;">Showing 1-4 of 128 records</span>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; border-color: transparent;">&lt;</button>
+          <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; border-color: transparent;">&gt;</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

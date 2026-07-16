@@ -157,7 +157,7 @@ def run_actual_pipeline():
         if state.image_result:
             # We just need the basename of the image to serve it via our API
             image_filename = os.path.basename(state.image_result.image_path)
-            pipeline_state["data"]["image_url"] = f"http://127.0.0.1:5000/api/images/{image_filename}"
+            pipeline_state["data"]["image_url"] = f"/api/images/{image_filename}"
             
         # Stage 5: Waiting Validation
         pipeline_state["current_stage_index"] = 4

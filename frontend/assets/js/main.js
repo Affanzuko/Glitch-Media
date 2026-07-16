@@ -160,7 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if(capIGEl) capIGEl.value = data.data.caption_ig;
           
           if(imgEl && data.data.image_url) {
-            imgEl.src = data.data.image_url;
+            // Convert relative path to absolute using current API_BASE
+            imgEl.src = data.data.image_url.startsWith('http') ? data.data.image_url : API_BASE.replace('/api', '') + data.data.image_url;
             imgEl.style.display = 'block';
             if(imgPlaceholder) imgPlaceholder.style.display = 'none';
           }
@@ -169,19 +170,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (data.status === 'error') {
-           clearInterval(pollingInterval);
-           alert("Pipeline Error: " + data.error_message);
-           if(startContainer) startContainer.style.display = 'flex';
-           if(runningContainer) runningContainer.style.display = 'none';
+           if (pollingInterval) {
+               clearInterval(pollingInterval);
+               pollingInterval = null;
+               alert("Pipeline Error: " + data.error_message);
+               if(startContainer) startContainer.style.display = 'flex';
+               if(runningContainer) runningContainer.style.display = 'none';
+           }
         }
 
         if (data.status === 'complete') {
-           clearInterval(pollingInterval);
-           setTimeout(() => {
-             alert("Publishing sequence complete!");
-             // Refresh to idle state
-             fetch(`${API_BASE}/pipeline/reject`, {method: 'POST'}).then(() => window.location.reload());
-           }, 1000);
+           if (pollingInterval) {
+               clearInterval(pollingInterval);
+               pollingInterval = null;
+               setTimeout(() => {
+                 alert("Publishing sequence complete!");
+                 // Refresh to idle state
+                 fetch(`${API_BASE}/pipeline/reject`, {method: 'POST'}).then(() => window.location.reload());
+               }, 1000);
+           }
         }
       });
   };

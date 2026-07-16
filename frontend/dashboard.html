@@ -51,70 +51,85 @@
       </div>
     </div>
 
-    <!-- Pipeline Activity -->
-    <div class="panel">
-      <h4 class="text-muted" style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-bottom: 1.5rem;">Pipeline Activity</h4>
-      <ul class="activity-list">
-        <li class="activity-item">
-          <div class="status-icon done">&#10003;</div>
-          <span>Data Screening</span>
-        </li>
-        <li class="activity-item">
-          <div class="status-icon done">&#10003;</div>
-          <span>Agent Image Gen</span>
-        </li>
-        <li class="activity-item">
-          <div class="status-icon progress">C</div>
-          <span class="text-cyan">Caption Drafting <span style="display: inline-block; animation: blink 1s infinite;">●</span></span>
-        </li>
-        <li class="activity-item">
-          <div class="status-icon wait"></div>
-          <span class="text-muted">Validation</span>
-        </li>
-        <li class="activity-item">
-          <div class="status-icon wait"></div>
-          <span class="text-muted">Final Upload</span>
-        </li>
-      </ul>
+    <!-- Pipeline Start Container -->
+    <div id="pipeline-start-container" style="display: flex; justify-content: center; align-items: center; min-height: 400px; border: 1px dashed var(--border-color); border-radius: 12px; margin-bottom: 2rem;">
+      <button id="btn-start-pipeline" class="btn btn-primary" style="font-size: 1.2rem; padding: 1.5rem 3rem; background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); box-shadow: 0 0 20px rgba(0,240,255,0.2);">
+        &#9654; START MULTI-AGENT PIPELINE
+      </button>
     </div>
 
-    <!-- HITL Validation -->
-    <div class="panel" style="border: 1px solid var(--accent-purple); box-shadow: 0 0 20px rgba(182, 36, 255, 0.1);">
-      <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); margin-bottom: 1.5rem;">
-        &#9745; Human-in-the-Loop Validation
-      </h3>
-      
-      <div class="hitl-grid">
-        <!-- Captions Column -->
-        <div>
-          <div class="form-group">
-            <label class="form-label">X (TWITTER) CAPTION</label>
-            <textarea class="form-control">Just discovered an ancient terminal hidden in sector 7. The data logs are intact, but they are encrypted with a logic bomb. Who left this behind? 👾⛓️ #CyberPunk #NetRunner</textarea>
-          </div>
-          <div class="form-group" style="margin-top: 1.5rem;">
-            <label class="form-label">INSTAGRAM CAPTION</label>
-            <textarea class="form-control" style="min-height: 150px;">Deep dive into the neon abyss. 🏙️ Every circuit tells a story, and this one is loud. Found in the underground markets of Neo-Kyoto. Hit the link in bio to see the full extraction process.</textarea>
-          </div>
-        </div>
+    <!-- Pipeline Running Container -->
+    <div id="pipeline-running-container" style="display: none;">
+      <!-- Pipeline Activity -->
+      <div class="panel">
+        <h4 class="text-muted" style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-bottom: 1.5rem;">Pipeline Activity</h4>
+        <ul class="activity-list" id="pipeline-activity-list">
+          <li class="activity-item" id="stage-scraping">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Scraping Data</span>
+          </li>
+          <li class="activity-item" id="stage-screening">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Data Screening</span>
+          </li>
+          <li class="activity-item" id="stage-caption">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Caption Drafting (X & IG)</span>
+          </li>
+          <li class="activity-item" id="stage-image">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Agent Image Gen</span>
+          </li>
+          <li class="activity-item" id="stage-validation">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Validation</span>
+          </li>
+          <li class="activity-item" id="stage-upload">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Final Upload</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- HITL Validation -->
+      <div id="hitl-validation-panel" class="panel" style="display: none; border: 1px solid var(--accent-purple); box-shadow: 0 0 20px rgba(182, 36, 255, 0.1);">
+        <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-purple); margin-bottom: 1.5rem;">
+          &#9745; Human-in-the-Loop Validation <span id="val-news-title" style="font-size: 0.9rem; color: var(--text-muted); font-weight: normal; margin-left: auto;"></span>
+        </h3>
         
-        <!-- Image Preview Column -->
-        <div>
-          <label class="form-label">IMAGE PREVIEW</label>
-          <div class="image-preview">
-            <!-- Placeholder styling using gradient -->
-            <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #12002b, #002b36, #200022); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 1rem;">
-              <span style="font-size: 3rem; opacity: 0.5;">🌃</span>
-              <span style="color: var(--text-muted); font-size: 0.8rem;">AI GENERATED PREVIEW</span>
+        <div class="hitl-grid">
+          <!-- Captions Column -->
+          <div>
+            <div class="form-group">
+              <label class="form-label">X (TWITTER) CAPTION</label>
+              <textarea id="val-caption-x" class="form-control" style="min-height: 120px;"></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 1.5rem;">
+              <label class="form-label">INSTAGRAM CAPTION</label>
+              <textarea id="val-caption-ig" class="form-control" style="min-height: 150px;"></textarea>
+            </div>
+          </div>
+          
+          <!-- Image Preview Column -->
+          <div>
+            <label class="form-label">IMAGE PREVIEW</label>
+            <div class="image-preview" style="background: transparent;">
+              <img id="val-image" src="" alt="AI Generated Preview" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px; display: none;">
+              
+              <div id="val-image-placeholder" style="width: 100%; height: 100%; background: linear-gradient(45deg, #12002b, #002b36, #200022); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; border-radius: 8px;">
+                <span style="font-size: 3rem; opacity: 0.5;">🌃</span>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">AI GENERATED PREVIEW</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Action Buttons -->
-      <div class="hitl-actions">
-        <button id="btn-reject" class="btn btn-outline" style="color: var(--accent-red); border-color: rgba(255,51,102,0.3);">REJECT</button>
-        <button id="btn-regen" class="btn btn-outline">REGENERATE IMAGE</button>
-        <button id="btn-accept" class="btn btn-primary" style="background: rgba(182,36,255,0.2); border: 1px solid var(--accent-purple);">ACCEPT & PUBLISH</button>
+        <!-- Action Buttons -->
+        <div class="hitl-actions">
+          <button id="btn-reject" class="btn btn-outline" style="color: var(--accent-red); border-color: rgba(255,51,102,0.3);">REJECT</button>
+          <button id="btn-regen" class="btn btn-outline">REGENERATE IMAGE</button>
+          <button id="btn-accept" class="btn btn-primary" style="background: rgba(182,36,255,0.2); border: 1px solid var(--accent-purple);">ACCEPT & PUBLISH</button>
+        </div>
       </div>
     </div>
 

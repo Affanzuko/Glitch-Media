@@ -1,14 +1,20 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect, url_for, send_from_directory
 from flask_cors import CORS
 from database import engine, SessionLocal, Base
 import models
+import os
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-app = Flask(__name__)
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
+app = Flask(__name__, static_folder=frontend_dir, static_url_path='')
 # Allow CORS for local HTML testing
 CORS(app)
+
+@app.route('/')
+def index():
+    return app.send_static_file('dashboard.html')
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
@@ -234,4 +240,4 @@ def reject_pipeline():
 
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(port=5001, debug=True)

@@ -439,7 +439,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRegen = document.getElementById('btn-regen');
   if (btnRegen) {
     btnRegen.addEventListener('click', () => {
-      alert('Regenerating visual assets based on new caption...');
+      const originalText = btnRegen.textContent;
+      btnRegen.textContent = 'REGENERATING...';
+      btnRegen.disabled = true;
+      
+      fetch(`${API_BASE}/pipeline/regen-image`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          // Polling will automatically pick up the new image URL when it's ready
+          // We just need to reset the button after a short delay or let polling handle it
+          setTimeout(() => {
+            btnRegen.textContent = originalText;
+            btnRegen.disabled = false;
+          }, 3000); // Reset button after 3 seconds, image might take longer but polling will update UI
+        })
+        .catch(err => {
+          console.error("Regen error:", err);
+          alert("Failed to regenerate image.");
+          btnRegen.textContent = originalText;
+          btnRegen.disabled = false;
+        });
     });
   }
 });

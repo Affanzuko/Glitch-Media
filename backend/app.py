@@ -423,6 +423,46 @@ def reject_pipeline():
         return jsonify({"message": "Pipeline rejected and reset"})
     return jsonify({"message": "Invalid state"}), 400
 
+@app.route('/api/pipeline/regen-image', methods=['POST'])
+def regen_image():
+    global pipeline_state
+    if pipeline_state["status"] != "waiting_validation":
+        return jsonify({"message": "Invalid state"}), 400
+
+    def do_regen():
+        try:
+            from agents import agent_image_generation
+            from config.schemas import CaptionIG
+            import uuid
+            import os
+
+            caption_ig_text = pipeline_state["data"].get("caption_ig", "")
+            news_title = pipeline_state["data"].get("news_title", "")
+            
+            caption_ig = CaptionIG(
+                news_ref_title=news_title,
+                caption_short=caption_ig_text
+            )
+            
+            run_id = f"regen_{uuid.uuid4().hex[:8]}"
+            
+            image_result = agent_image_generation.run(
+                caption_ig=caption_ig,
+                run_id=run_id
+            )
+            
+            if image_result and image_result.image_path:
+                image_filename = os.path.basename(image_result.image_path)
+                pipeline_state["data"]["image_url"] = f"/api/images/{image_filename}"
+                
+        except Exception as e:
+            print(f"Regen image error: {e}")
+
+    thread = threading.Thread(target=do_regen)
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({"message": "Regenerating image..."})
 
 if __name__ == '__main__':
     app.run(port=5001, debug=True)

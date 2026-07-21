@@ -81,6 +81,116 @@ def update_settings():
     finally:
         db.close()
 
+# --- OAUTH API ENDPOINTS ---
+
+@app.route('/api/oauth/status', methods=['GET'])
+def get_oauth_status():
+    """Get connection status for X and IG accounts."""
+    try:
+        from tools.oauth_manager import get_connection_status
+        status = get_connection_status()
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Shared state for tracking OAuth login progress
+_oauth_login_state = {}
+
+
+@app.route('/api/oauth/login/x', methods=['POST'])
+def oauth_login_x():
+    """Initiate X/Twitter OAuth login — returns auth_url for frontend to open."""
+    try:
+        from tools.oauth_server import initiate_x_login, complete_x_login
+
+        # Initiate login and get auth URL
+        initiation = initiate_x_login()
+        if "error" in initiation:
+            return jsonify(initiation), 400
+
+        # Start background thread to wait for callback and exchange token
+        _oauth_login_state["x"] = "pending"
+
+        def wait_for_x():
+            result = complete_x_login(timeout=120)
+            _oauth_login_state["x"] = result
+
+        thread = threading.Thread(target=wait_for_x, daemon=True)
+        thread.start()
+
+        return jsonify({"auth_url": initiation["auth_url"], "status": "pending"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/oauth/login/ig', methods=['POST'])
+def oauth_login_ig():
+    """Initiate Instagram OAuth login — returns auth_url for frontend to open."""
+    try:
+        from tools.oauth_server import initiate_ig_login, complete_ig_login
+
+        # Initiate login and get auth URL
+        initiation = initiate_ig_login()
+        if "error" in initiation:
+            return jsonify(initiation), 400
+
+        # Start background thread to wait for callback and exchange token
+        _oauth_login_state["ig"] = "pending"
+
+        def wait_for_ig():
+            result = complete_ig_login(timeout=120)
+            _oauth_login_state["ig"] = result
+
+        thread = threading.Thread(target=wait_for_ig, daemon=True)
+        thread.start()
+
+        return jsonify({"auth_url": initiation["auth_url"], "status": "pending"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/oauth/login/<platform>/poll', methods=['GET'])
+def oauth_login_poll(platform):
+    """Poll OAuth login status — frontend calls this to check if login is complete."""
+    if platform not in ("x", "ig"):
+        return jsonify({"error": "Invalid platform"}), 400
+
+    state = _oauth_login_state.get(platform)
+    if state is None:
+        return jsonify({"status": "none"})
+    if state == "pending":
+        return jsonify({"status": "pending"})
+
+    # Login completed (state is now the result dict)
+    result = state
+    _oauth_login_state.pop(platform, None)  # Clear state after reading
+    if "error" in result:
+        return jsonify({"status": "error", "error": result["error"]})
+    return jsonify({"status": "success", **result})
+
+
+@app.route('/api/oauth/logout/<platform>', methods=['POST'])
+def oauth_logout(platform):
+    """Disconnect an account — remove stored tokens."""
+    if platform not in ("x", "ig"):
+        return jsonify({"error": "Invalid platform"}), 400
+
+    try:
+        from tools.oauth_manager import remove_tokens
+        from tools.x_api_client import reset_client
+
+        remove_tokens(platform)
+
+        # Reset cached client jika X
+        if platform == "x":
+            reset_client()
+
+        return jsonify({"message": f"{platform} account disconnected"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # --- PIPELINE INTEGRATION ---
 import threading
 import time
@@ -213,13 +323,72 @@ def publish_pipeline():
         pipeline_state["current_stage_index"] = 5
         stages[5]["status"] = "progress"
         
-        def simulate_upload():
-            # TODO: Integrate actual upload agent when ready
-            time.sleep(2)
-            stages[5]["status"] = "done"
-            pipeline_state["status"] = "complete"
+        def real_upload():
+            """Upload ke X dan IG menggunakan agent yang sudah terkoneksi via OAuth."""
+            try:
+                from tools.oauth_manager import is_token_valid
+                from agents.agent_upload_x import run as upload_x_run
+                from agents.agent_upload_ig import run as upload_ig_run
+                from config.schemas import CaptionX, CaptionIG, ImageGenResult
+
+                caption_x_text = pipeline_state["data"].get("caption_x", "")
+                caption_ig_text = pipeline_state["data"].get("caption_ig", "")
+                news_title = pipeline_state["data"].get("news_title", "")
+                image_path = pipeline_state["data"].get("image_url", "")
+
+                errors = []
+
+                # Upload ke X jika token tersedia
+                if is_token_valid("x") and caption_x_text:
+                    try:
+                        caption_x = CaptionX(
+                            news_ref_title=news_title,
+                            caption_long=caption_x_text,
+                        )
+                        result_x = upload_x_run(caption_x)
+                        if not result_x.success:
+                            errors.append(f"X: {result_x.error}")
+                    except Exception as e:
+                        errors.append(f"X upload error: {str(e)}")
+                elif caption_x_text:
+                    errors.append("X: Akun belum terkoneksi")
+
+                # Upload ke IG jika token tersedia
+                if is_token_valid("ig") and caption_ig_text:
+                    try:
+                        # Resolve image path dari API URL ke path lokal
+                        local_image_path = image_path
+                        if image_path.startswith("/api/images/"):
+                            image_filename = image_path.replace("/api/images/", "")
+                            local_image_path = str(IMAGES_DIR / image_filename)
+
+                        caption_ig = CaptionIG(
+                            news_ref_title=news_title,
+                            caption_short=caption_ig_text,
+                        )
+                        image_result = ImageGenResult(image_path=local_image_path)
+                        result_ig = upload_ig_run(caption_ig, image_result)
+                        if not result_ig.success:
+                            errors.append(f"IG: {result_ig.error}")
+                    except Exception as e:
+                        errors.append(f"IG upload error: {str(e)}")
+                elif caption_ig_text:
+                    errors.append("IG: Akun belum terkoneksi")
+
+                if errors:
+                    stages[5]["status"] = "done"
+                    pipeline_state["status"] = "complete"
+                    pipeline_state["error_message"] = "; ".join(errors)
+                else:
+                    stages[5]["status"] = "done"
+                    pipeline_state["status"] = "complete"
+
+            except Exception as e:
+                stages[5]["status"] = "wait"
+                pipeline_state["status"] = "error"
+                pipeline_state["error_message"] = f"Upload failed: {str(e)}"
             
-        thread = threading.Thread(target=simulate_upload)
+        thread = threading.Thread(target=real_upload)
         thread.daemon = True
         thread.start()
         
@@ -241,3 +410,4 @@ def reject_pipeline():
 
 if __name__ == '__main__':
     app.run(port=5001, debug=True)
+

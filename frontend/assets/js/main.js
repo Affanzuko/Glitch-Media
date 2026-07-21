@@ -61,42 +61,169 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => console.error("Failed to fetch history", err));
   }
 
-  // 2. Load and Save Settings
-  const btnSaveConfig = document.getElementById('btn-save-config');
-  const inputOpenAI = document.getElementById('api-openai');
-  const inputAnthropic = document.getElementById('api-anthropic');
-  const input9Router = document.getElementById('api-9router');
+  // 2. Account Connection (Settings page)
+  const cardX = document.getElementById('card-x');
+  const cardIG = document.getElementById('card-ig');
 
-  // Load on settings page
-  if (btnSaveConfig) {
-    fetch(`${API_BASE}/settings`)
+  if (cardX || cardIG) {
+    // Load account status on settings page
+    loadAccountStatus();
+  }
+
+  function loadAccountStatus() {
+    fetch(`${API_BASE}/oauth/status`)
       .then(res => res.json())
       .then(data => {
-        if(data['OPENAI_API_KEY']) inputOpenAI.value = data['OPENAI_API_KEY'];
-        if(data['ANTHROPIC_API_KEY']) inputAnthropic.value = data['ANTHROPIC_API_KEY'];
-        if(data['NINEROUTER_API_KEY']) input9Router.value = data['NINEROUTER_API_KEY'];
-      });
-
-    btnSaveConfig.addEventListener('click', () => {
-      const payload = {
-        OPENAI_API_KEY: inputOpenAI.value,
-        ANTHROPIC_API_KEY: inputAnthropic.value,
-        NINEROUTER_API_KEY: input9Router.value
-      };
-      
-      btnSaveConfig.innerText = 'SAVING...';
-      fetch(`${API_BASE}/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        if (data.error) {
+          console.error("OAuth status error:", data.error);
+          return;
+        }
+        renderAccountCard('x', data.x || { connected: false });
+        renderAccountCard('ig', data.ig || { connected: false });
       })
+      .catch(err => {
+        console.error("Failed to fetch OAuth status", err);
+        renderAccountCard('x', { connected: false });
+        renderAccountCard('ig', { connected: false });
+      });
+  }
+
+  function renderAccountCard(platform, data) {
+    const card = document.getElementById(`card-${platform}`);
+    const statusEl = document.getElementById(`status-${platform}`);
+    const infoEl = document.getElementById(`info-${platform}`);
+    const emptyEl = document.getElementById(`empty-${platform}`);
+    const btnConnect = document.getElementById(`btn-connect-${platform}`);
+    const btnDisconnect = document.getElementById(`btn-disconnect-${platform}`);
+    const usernameEl = document.getElementById(`username-${platform}`);
+    const displaynameEl = document.getElementById(`displayname-${platform}`);
+    const expiryEl = document.getElementById(`expiry-${platform}`);
+
+    if (!card) return;
+
+    if (data.connected) {
+      // Connected state
+      card.classList.add('connected');
+      statusEl.className = 'account-status connected';
+      statusEl.querySelector('.status-text').textContent = 'Connected';
+
+      infoEl.style.display = 'flex';
+      emptyEl.style.display = 'none';
+      btnConnect.style.display = 'none';
+      btnDisconnect.style.display = 'flex';
+
+      usernameEl.textContent = `@${data.username || 'unknown'}`;
+      displaynameEl.textContent = data.display_name || '';
+
+      if (data.expires_at) {
+        const expiryDate = new Date(data.expires_at * 1000);
+        const now = new Date();
+        const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+        expiryEl.textContent = `Token expires in ${daysLeft} days`;
+      } else {
+        expiryEl.textContent = '';
+      }
+    } else {
+      // Disconnected state
+      card.classList.remove('connected');
+      statusEl.className = 'account-status disconnected';
+      statusEl.querySelector('.status-text').textContent = 'Not Connected';
+
+      infoEl.style.display = 'none';
+      emptyEl.style.display = 'block';
+      btnConnect.style.display = 'flex';
+      btnDisconnect.style.display = 'none';
+    }
+  }
+
+  // Expose connect/disconnect to global scope for onclick handlers
+  window.connectAccount = function(platform) {
+    const btnConnect = document.getElementById(`btn-connect-${platform}`);
+    const statusEl = document.getElementById(`status-${platform}`);
+    const card = document.getElementById(`card-${platform}`);
+
+    // Set loading state
+    btnConnect.classList.add('loading');
+    btnConnect.innerHTML = `CONNECTING...`;
+    statusEl.className = 'account-status pending';
+    statusEl.querySelector('.status-text').textContent = 'Waiting...';
+
+    fetch(`${API_BASE}/oauth/login/${platform}`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(`Error: ${data.error}`);
+          btnConnect.classList.remove('loading');
+          btnConnect.innerHTML = `CONNECT ${platform === 'x' ? 'X ACCOUNT' : 'INSTAGRAM'}`;
+          renderAccountCard(platform, { connected: false });
+          return;
+        }
+
+        // Open auth URL in a new tab
+        if (data.auth_url) {
+          window.open(data.auth_url, '_blank', 'width=600,height=700');
+        }
+
+        // Start polling for login completion
+        let pollCount = 0;
+        const maxPolls = 60; // 120 seconds (2s interval)
+        const pollInterval = setInterval(() => {
+          pollCount++;
+
+          fetch(`${API_BASE}/oauth/login/${platform}/poll`)
+            .then(res => res.json())
+            .then(pollData => {
+              if (pollData.status === 'success') {
+                clearInterval(pollInterval);
+                btnConnect.classList.remove('loading');
+                loadAccountStatus(); // Refresh all cards
+              } else if (pollData.status === 'error') {
+                clearInterval(pollInterval);
+                btnConnect.classList.remove('loading');
+                btnConnect.innerHTML = `CONNECT ${platform === 'x' ? 'X ACCOUNT' : 'INSTAGRAM'}`;
+                renderAccountCard(platform, { connected: false });
+                alert(`Login failed: ${pollData.error}`);
+              } else if (pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                btnConnect.classList.remove('loading');
+                btnConnect.innerHTML = `CONNECT ${platform === 'x' ? 'X ACCOUNT' : 'INSTAGRAM'}`;
+                renderAccountCard(platform, { connected: false });
+                alert('Login timeout — please try again.');
+              }
+            })
+            .catch(() => {
+              // Network error during poll — keep trying
+            });
+        }, 2000);
+      })
+      .catch(err => {
+        console.error(`Connect ${platform} error:`, err);
+        btnConnect.classList.remove('loading');
+        btnConnect.innerHTML = `CONNECT ${platform === 'x' ? 'X ACCOUNT' : 'INSTAGRAM'}`;
+        alert('Failed to initiate login. Check server console.');
+      });
+  };
+
+  window.disconnectAccount = function(platform) {
+    if (!confirm(`Disconnect ${platform === 'x' ? 'X/Twitter' : 'Instagram'} account?`)) return;
+
+    const btnDisconnect = document.getElementById(`btn-disconnect-${platform}`);
+    btnDisconnect.textContent = 'DISCONNECTING...';
+    btnDisconnect.style.opacity = '0.6';
+
+    fetch(`${API_BASE}/oauth/logout/${platform}`, { method: 'POST' })
       .then(res => res.json())
       .then(() => {
-        btnSaveConfig.innerText = 'SAVED ✓';
-        setTimeout(() => btnSaveConfig.innerText = 'SAVE CONFIGURATION', 2000);
+        loadAccountStatus(); // Refresh all cards
+      })
+      .catch(err => {
+        console.error(`Disconnect ${platform} error:`, err);
+        alert('Failed to disconnect account.');
+        btnDisconnect.textContent = 'DISCONNECT';
+        btnDisconnect.style.opacity = '1';
       });
-    });
-  }
+  };
+
 
   // Pipeline Logic
   const startContainer = document.getElementById('pipeline-start-container');

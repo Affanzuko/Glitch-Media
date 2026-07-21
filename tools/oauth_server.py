@@ -153,24 +153,25 @@ def generate_state(platform: str) -> str:
 
 # ── X/Twitter OAuth 2.0 PKCE ────────────────────────────────────────────────
 
-def login_x() -> dict:
+# Shared state untuk split initiate/complete flow (web UI)
+_pkce_store: dict = {}
+
+
+def initiate_x_login() -> dict:
     """
-    Jalankan OAuth 2.0 PKCE flow untuk X/Twitter.
-    Buka browser → user login → callback → exchange code → simpan token.
+    Mulai OAuth 2.0 PKCE flow untuk X/Twitter — return auth URL.
+    Dipakai oleh web UI agar frontend bisa membuka URL di tab baru.
 
     Returns:
-        Dict dengan status login.
+        Dict dengan 'auth_url' atau 'error'.
     """
     import hashlib
     import base64
-    import requests
     from config.settings import (
         X_OAUTH_CLIENT_ID,
-        X_OAUTH_CLIENT_SECRET,
         X_OAUTH_REDIRECT_URI,
         OAUTH_SERVER_PORT,
     )
-    from tools.oauth_manager import save_tokens
 
     if not X_OAUTH_CLIENT_ID:
         return {"error": "X_OAUTH_CLIENT_ID belum diset di .env"}
@@ -182,6 +183,9 @@ def login_x() -> dict:
     ).rstrip(b"=").decode()
 
     state = generate_state("x")
+
+    # Simpan code_verifier untuk dipakai saat exchange
+    _pkce_store["x_code_verifier"] = code_verifier
 
     # Build authorization URL
     auth_params = {
@@ -198,23 +202,42 @@ def login_x() -> dict:
     # Start callback server
     start_server(OAUTH_SERVER_PORT)
 
-    try:
-        # Buka browser
-        print(f"🌐 Membuka browser untuk login X/Twitter...")
-        print(f"   URL: {auth_url}")
-        webbrowser.open(auth_url)
+    logger.info(f"X OAuth initiated, auth_url ready")
+    return {"auth_url": auth_url}
 
+
+def complete_x_login(timeout: int = 120) -> dict:
+    """
+    Tunggu OAuth callback dari X, exchange code, simpan token.
+    Harus dipanggil setelah initiate_x_login().
+
+    Args:
+        timeout: Timeout dalam detik.
+
+    Returns:
+        Dict dengan 'success', 'username', 'display_name' atau 'error'.
+    """
+    import requests
+    from config.settings import (
+        X_OAUTH_CLIENT_ID,
+        X_OAUTH_CLIENT_SECRET,
+        X_OAUTH_REDIRECT_URI,
+    )
+    from tools.oauth_manager import save_tokens
+
+    try:
         # Tunggu callback
-        print("⏳ Menunggu login di browser...")
-        result = wait_for_callback("x", timeout=120)
+        logger.info("Waiting for X OAuth callback...")
+        result = wait_for_callback("x", timeout=timeout)
 
         if "error" in result:
             return {"error": result["error"]}
 
         code = result["code"]
+        code_verifier = _pkce_store.get("x_code_verifier", "")
 
         # Exchange code for token
-        print("🔄 Menukar authorization code untuk access token...")
+        logger.info("Exchanging X authorization code for access token...")
         token_response = requests.post(
             "https://api.twitter.com/2/oauth2/token",
             data={
@@ -259,7 +282,7 @@ def login_x() -> dict:
         })
 
         username = user_data.get("username", "Unknown")
-        print(f"✅ Login X berhasil! Terkoneksi sebagai @{username}")
+        logger.info(f"X OAuth complete — connected as @{username}")
         return {
             "success": True,
             "username": username,
@@ -267,30 +290,49 @@ def login_x() -> dict:
         }
 
     except Exception as e:
-        logger.error(f"X OAuth error: {e}")
+        logger.error(f"X OAuth complete error: {e}")
         return {"error": str(e)}
     finally:
         stop_server()
 
 
-# ── Instagram OAuth (Facebook Login) ────────────────────────────────────────
-
-def login_ig() -> dict:
+def login_x() -> dict:
     """
-    Jalankan OAuth flow untuk Instagram (via Facebook Login).
-    Buka browser → user login → callback → exchange code → get IG account → simpan token.
+    Jalankan OAuth 2.0 PKCE flow untuk X/Twitter (backward compatible).
+    Buka browser → user login → callback → exchange code → simpan token.
 
     Returns:
         Dict dengan status login.
     """
-    import requests
+    initiation = initiate_x_login()
+    if "error" in initiation:
+        return initiation
+
+    auth_url = initiation["auth_url"]
+    print(f"🌐 Membuka browser untuk login X/Twitter...")
+    print(f"   URL: {auth_url}")
+    webbrowser.open(auth_url)
+
+    print("⏳ Menunggu login di browser...")
+    return complete_x_login(timeout=120)
+
+
+# ── Instagram OAuth (Facebook Login) ────────────────────────────────────────
+
+def initiate_ig_login() -> dict:
+    """
+    Mulai OAuth flow untuk Instagram — return auth URL.
+    Dipakai oleh web UI agar frontend bisa membuka URL di tab baru.
+
+    Returns:
+        Dict dengan 'auth_url' atau 'error'.
+    """
     from config.settings import (
         IG_OAUTH_APP_ID,
         IG_OAUTH_APP_SECRET,
         IG_OAUTH_REDIRECT_URI,
         OAUTH_SERVER_PORT,
     )
-    from tools.oauth_manager import save_tokens
 
     if not IG_OAUTH_APP_ID:
         return {"error": "IG_OAUTH_APP_ID belum diset di .env"}
@@ -312,13 +354,32 @@ def login_ig() -> dict:
     # Start callback server
     start_server(OAUTH_SERVER_PORT)
 
-    try:
-        print(f"🌐 Membuka browser untuk login Instagram...")
-        print(f"   URL: {auth_url}")
-        webbrowser.open(auth_url)
+    logger.info(f"IG OAuth initiated, auth_url ready")
+    return {"auth_url": auth_url}
 
-        print("⏳ Menunggu login di browser...")
-        result = wait_for_callback("ig", timeout=120)
+
+def complete_ig_login(timeout: int = 120) -> dict:
+    """
+    Tunggu OAuth callback dari IG, exchange code, simpan token.
+    Harus dipanggil setelah initiate_ig_login().
+
+    Args:
+        timeout: Timeout dalam detik.
+
+    Returns:
+        Dict dengan 'success', 'username', 'display_name', 'account_id' atau 'error'.
+    """
+    import requests
+    from config.settings import (
+        IG_OAUTH_APP_ID,
+        IG_OAUTH_APP_SECRET,
+        IG_OAUTH_REDIRECT_URI,
+    )
+    from tools.oauth_manager import save_tokens
+
+    try:
+        logger.info("Waiting for IG OAuth callback...")
+        result = wait_for_callback("ig", timeout=timeout)
 
         if "error" in result:
             return {"error": result["error"]}
@@ -326,7 +387,7 @@ def login_ig() -> dict:
         code = result["code"]
 
         # Exchange code for short-lived token
-        print("🔄 Menukar authorization code untuk access token...")
+        logger.info("Exchanging IG authorization code for access token...")
         token_response = requests.get(
             "https://graph.facebook.com/v18.0/oauth/access_token",
             params={
@@ -342,7 +403,7 @@ def login_ig() -> dict:
         short_token = token_data["access_token"]
 
         # Exchange for long-lived token (60 hari)
-        print("🔄 Menukar ke long-lived token...")
+        logger.info("Exchanging to long-lived token...")
         long_response = requests.get(
             "https://graph.facebook.com/v18.0/oauth/access_token",
             params={
@@ -359,7 +420,7 @@ def login_ig() -> dict:
         expires_in = long_data.get("expires_in", 5184000)  # default 60 hari
 
         # Ambil Facebook Pages yang dimiliki user
-        print("🔍 Mencari akun Instagram Business yang terkoneksi...")
+        logger.info("Searching for connected Instagram Business account...")
         pages_response = requests.get(
             "https://graph.facebook.com/v18.0/me/accounts",
             params={"access_token": long_token},
@@ -426,7 +487,7 @@ def login_ig() -> dict:
         })
 
         username = ig_info.get("username", "Unknown")
-        print(f"✅ Login Instagram berhasil! Terkoneksi sebagai @{username}")
+        logger.info(f"IG OAuth complete — connected as @{username}")
         return {
             "success": True,
             "username": username,
@@ -435,7 +496,28 @@ def login_ig() -> dict:
         }
 
     except Exception as e:
-        logger.error(f"IG OAuth error: {e}")
+        logger.error(f"IG OAuth complete error: {e}")
         return {"error": str(e)}
     finally:
         stop_server()
+
+
+def login_ig() -> dict:
+    """
+    Jalankan OAuth flow untuk Instagram (backward compatible).
+    Buka browser → user login → callback → exchange code → get IG account → simpan token.
+
+    Returns:
+        Dict dengan status login.
+    """
+    initiation = initiate_ig_login()
+    if "error" in initiation:
+        return initiation
+
+    auth_url = initiation["auth_url"]
+    print(f"🌐 Membuka browser untuk login Instagram...")
+    print(f"   URL: {auth_url}")
+    webbrowser.open(auth_url)
+
+    print("⏳ Menunggu login di browser...")
+    return complete_ig_login(timeout=120)

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Glitch Media - Publish History</title>
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
+
 <body>
 
   <!-- Sidebar -->
@@ -19,31 +21,29 @@
     </div>
     <ul class="nav-links">
       <li class="nav-item">
-        <a href="dashboard.html" class="nav-link">DASHBOARD</a>
+        <a href="dashboard.html" class="nav-link">Dashboard</a>
       </li>
       <li class="nav-item">
-        <a href="history.html" class="nav-link active">HISTORY</a>
+        <a href="history.html" class="nav-link active">History</a>
       </li>
       <li class="nav-item">
-        <a href="settings.html" class="nav-link">SETTINGS</a>
+        <a href="settings.html" class="nav-link">Settings</a>
       </li>
     </ul>
     <div class="sidebar-footer">
-      <a href="#" class="nav-link" style="font-size: 0.8rem;">Documentation</a>
-      <a href="#" class="nav-link" style="font-size: 0.8rem;">Support</a>
       <button class="btn-emergency">&#9888; EMERGENCY STOP</button>
     </div>
   </aside>
 
   <!-- Main Content -->
   <main class="main-content">
-    
+
     <header style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
       <div>
         <h1 class="text-purple" style="color: white;">Publish History</h1>
         <p class="text-muted">System Log // Transmission Records</p>
       </div>
-      
+
       <div style="display: flex; gap: 1rem;">
         <select class="form-control" style="width: auto; background: var(--bg-dark);">
           <option>All Platforms</option>
@@ -51,7 +51,9 @@
           <option>Instagram</option>
         </select>
         <input type="date" class="form-control" style="width: auto; background: var(--bg-dark);">
-        <button class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent-cyan), #aeeef5); color: #000; font-weight: bold;">EXPORT LOG</button>
+        <button class="btn btn-primary"
+          style="background: linear-gradient(135deg, var(--accent-cyan), #aeeef5); color: #000; font-weight: bold;">EXPORT
+          LOG</button>
       </div>
     </header>
 
@@ -71,8 +73,9 @@
           <!-- Rows will be populated by JavaScript -->
         </tbody>
       </table>
-      
-      <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+
+      <div
+        style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
         <span class="text-muted" style="font-size: 0.8rem;">Showing 1-4 of 128 records</span>
         <div style="display: flex; gap: 0.5rem;">
           <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; border-color: transparent;">&lt;</button>
@@ -85,4 +88,5 @@
 
   <script src="assets/js/main.js"></script>
 </body>
+
 </html>

@@ -313,6 +313,22 @@ def start_pipeline():
 def publish_pipeline():
     global pipeline_state
     if pipeline_state["status"] == "waiting_validation":
+        # ── Cek apakah ada akun yang terkoneksi sebelum lanjut upload ──
+        try:
+            from tools.oauth_manager import is_token_valid
+            x_connected = is_token_valid("x")
+            ig_connected = is_token_valid("ig")
+        except Exception:
+            x_connected = False
+            ig_connected = False
+
+        if not x_connected and not ig_connected:
+            # Tidak ada akun terkoneksi — pipeline tetap di validasi
+            return jsonify({
+                "error": "no_account_connected",
+                "message": "Tidak ada akun yang terkoneksi. Hubungkan akun X atau Instagram di halaman Settings terlebih dahulu."
+            }), 400
+
         pipeline_state["status"] = "running"
         stages = pipeline_state["stages"]
         

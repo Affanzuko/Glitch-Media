@@ -246,9 +246,9 @@ document.addEventListener('DOMContentLoaded', () => {
       span.className = '';
       span.innerHTML = name;
     } else if (status === 'progress') {
-      icon.innerHTML = name.charAt(0);
+      icon.innerHTML = '';
       span.className = 'text-cyan';
-      span.innerHTML = `${name} <span style="display: inline-block; animation: blink 1s infinite;">●</span>`;
+      span.innerHTML = name;
     } else {
       icon.innerHTML = '';
       span.className = 'text-muted';
@@ -336,20 +336,91 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnAccept = document.getElementById('btn-accept');
   if (btnAccept) {
     btnAccept.addEventListener('click', () => {
-      // Create history record
-      fetch(`${API_BASE}/history`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payload_title: "Generated_Post_" + Math.floor(Math.random() * 1000),
-          target_platform: "Platform X & Instagram",
-          status: "SUCCESS",
-          diagnostics: "Published via Dashboard."
+      // Cek dulu apakah publish bisa dilakukan (akun terkoneksi?)
+      fetch(`${API_BASE}/pipeline/publish`, { method: 'POST' })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok && data.error === 'no_account_connected') {
+            // Tampilkan popup alert — akun belum terkoneksi
+            showNoAccountAlert(data.message);
+            return;
+          }
+
+          // Publish berhasil dimulai — buat history record
+          fetch(`${API_BASE}/history`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              payload_title: "Generated_Post_" + Math.floor(Math.random() * 1000),
+              target_platform: "Platform X & Instagram",
+              status: "SUCCESS",
+              diagnostics: "Published via Dashboard."
+            })
+          });
         })
-      }).then(() => {
-        // Trigger publish sequence
-        fetch(`${API_BASE}/pipeline/publish`, { method: 'POST' });
-      });
+        .catch(err => {
+          console.error("Publish error:", err);
+          alert("Gagal menghubungi server. Cek koneksi.");
+        });
+    });
+  }
+
+  // ── Popup Alert: Akun Belum Terkoneksi ──
+  function showNoAccountAlert(message) {
+    // Hapus overlay lama jika ada
+    const existing = document.getElementById('no-account-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'no-account-overlay';
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); display: flex; align-items: center;
+      justify-content: center; z-index: 9999;
+    `;
+
+    overlay.innerHTML = `
+      <div style="
+        background: #1a1a2e; border: 1px solid var(--accent-purple); border-radius: 12px;
+        padding: 32px; max-width: 440px; width: 90%; text-align: center;
+      ">
+        <div style="margin-bottom: 16px; display: flex; justify-content: center;">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="transparent" stroke="var(--accent-purple)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <h3 style="color: #fff; margin: 0 0 12px 0; font-size: 1.2rem;">
+          Akun Belum Terkoneksi
+        </h3>
+        <p style="color: #ccc; margin: 0 0 24px 0; font-size: 0.95rem; line-height: 1.5;">
+          ${message}
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button onclick="window.location.href='settings.html'"
+            style="
+              background: linear-gradient(to right, var(--accent-purple), var(--accent-cyan)); color: #fff; border: none; padding: 10px 24px;
+              border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem;
+            ">
+            Buka Settings
+          </button>
+          <button onclick="document.getElementById('no-account-overlay').remove()"
+            style="
+              background: transparent; color: #ccc; border: 1px solid var(--accent-purple);
+              padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+            ">
+            Tutup
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Klik di luar popup untuk tutup
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
     });
   }
 

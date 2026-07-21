@@ -8,7 +8,7 @@
   --text-muted: #8b8b99;
   --accent-cyan: #00f0ff;
   --accent-purple: #b624ff;
-  --accent-green: #00ff88;
+  --accent-green: #5eaf2e;
   --accent-red: #ff3366;
   --border-color: #2a2a35;
   --sidebar-w: 260px;
@@ -48,7 +48,7 @@ h2 {
 
 .text-muted {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .text-cyan {
@@ -222,11 +222,11 @@ textarea.form-control {
 /* Buttons */
 .btn {
   display: inline-flex;
-  align-items: center;
+  align-items: center;  
   justify-content: center;
   gap: 0.5rem;
   padding: 0.8rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 15px;
   font-weight: 500;
   cursor: pointer;
   border: none;
@@ -300,9 +300,8 @@ textarea.form-control {
 .activity-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border-color);
+  gap: 1.5rem;
+  padding: 0.8rem 0;
 }
 
 .activity-item:last-child {
@@ -319,25 +318,36 @@ textarea.form-control {
 }
 
 .status-icon.done {
-  color: var(--accent-green);
-  border: 1px solid var(--accent-green);
+  background-color: var(--accent-green);
+  color: white;
+  border: none;
+  font-weight: bold;
 }
 
 .status-icon.progress {
-  color: var(--accent-cyan);
-  border: 1px solid var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+  border: 2.5px solid transparent;
+  border-top-color: var(--accent-cyan);
+  border-right-color: var(--accent-cyan);
+  border-bottom-color: var(--accent-cyan);
+  animation: spin 1.5s linear infinite;
+  box-shadow: none;
+  color: transparent;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .status-icon.wait {
   color: var(--text-muted);
-  border: 1px solid var(--text-muted);
+  border: 2px solid var(--text-muted);
 }
 
 .hitl-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 3rem;
 }
 
 .hitl-actions {
@@ -348,7 +358,7 @@ textarea.form-control {
 }
 
 .image-preview {
-  width: 100%;
+  width: 99%;
   aspect-ratio: 1/1;
   background: var(--bg-input);
   border-radius: 8px;

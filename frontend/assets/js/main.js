@@ -28,12 +28,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   };
 
+  let globalHistoryRecords = [];
+
   // 1. Load History
   const historyTbody = document.getElementById('history-tbody');
   if (historyTbody) {
     fetch(`${API_BASE}/history`)
       .then(res => res.json())
       .then(data => {
+        globalHistoryRecords = data;
         historyTbody.innerHTML = '';
         if(data.length === 0) {
             historyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No records found.</td></tr>';
@@ -43,6 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const badgeClass = item.status === 'SUCCESS' ? 'badge-success' : 'badge-failed';
           const diagStyle = item.status === 'SUCCESS' ? 'color: var(--text-muted);' : 'color: var(--accent-red);';
           
+          let actionHtml = `<td><span style="color: var(--text-muted); cursor: pointer;">&gt;</span></td>`;
+          if (item.status === 'UNPUBLISHED') {
+              actionHtml = `<td><button class="btn btn-primary" onclick="publishFromHistory(${item.id})" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Publish</button></td>`;
+          }
+
           historyTbody.innerHTML += `
             <tr>
               <td>
@@ -53,12 +61,132 @@ document.addEventListener('DOMContentLoaded', () => {
               <td class="text-muted">${item.target_platform}</td>
               <td><span class="badge ${badgeClass}">● ${item.status}</span></td>
               <td style="font-size: 0.8rem; ${diagStyle}">${item.diagnostics}</td>
-              <td><span style="color: var(--text-muted); cursor: pointer;">&gt;</span></td>
+              ${actionHtml}
             </tr>
           `;
         });
       })
       .catch(err => console.error("Failed to fetch history", err));
+  }
+
+  window.publishFromHistory = function(id) {
+      const record = globalHistoryRecords.find(r => r.id === id);
+      if (!record) return;
+
+      const overlay = document.getElementById('history-popup-overlay');
+      if (overlay) {
+          document.getElementById('hist-news-title').innerText = "- " + (record.news_title || "");
+          document.getElementById('hist-caption-x').value = record.caption_x || "";
+          document.getElementById('hist-caption-ig').value = record.caption_ig || "";
+
+          const imgEl = document.getElementById('hist-image');
+          const placeholderEl = document.getElementById('hist-image-placeholder');
+          if (record.image_url) {
+              imgEl.src = record.image_url.startsWith('http') ? record.image_url : API_BASE.replace('/api', '') + record.image_url;
+              imgEl.style.display = 'block';
+              if(placeholderEl) placeholderEl.style.display = 'none';
+          } else {
+              imgEl.style.display = 'none';
+              if(placeholderEl) placeholderEl.style.display = 'flex';
+          }
+
+          document.getElementById('btn-hist-publish').setAttribute('data-id', id);
+          document.getElementById('btn-hist-regen').setAttribute('data-id', id);
+
+          overlay.style.display = 'flex';
+      }
+  };
+
+  const btnHistCancel = document.getElementById('btn-hist-cancel');
+  if (btnHistCancel) {
+      btnHistCancel.addEventListener('click', () => {
+          document.getElementById('history-popup-overlay').style.display = 'none';
+      });
+  }
+
+  const btnHistPublish = document.getElementById('btn-hist-publish');
+  if (btnHistPublish) {
+      btnHistPublish.addEventListener('click', () => {
+          const id = btnHistPublish.getAttribute('data-id');
+          if (!id) return;
+          if(!confirm("Publish this agent now?")) return;
+          
+          btnHistPublish.disabled = true;
+          btnHistPublish.textContent = "PUBLISHING...";
+
+          const editedCaptionX = document.getElementById('hist-caption-x').value;
+          const editedCaptionIG = document.getElementById('hist-caption-ig').value;
+
+          fetch(`${API_BASE}/history/publish/${id}`, { 
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  caption_x: editedCaptionX,
+                  caption_ig: editedCaptionIG
+              })
+          })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok && data.error === 'no_account_connected') {
+                    showNoAccountAlert(data.message);
+                    btnHistPublish.disabled = false;
+                    btnHistPublish.textContent = "PUBLISH";
+                    return;
+                }
+                if(!ok) {
+                    alert("Error: " + data.error);
+                    btnHistPublish.disabled = false;
+                    btnHistPublish.textContent = "PUBLISH";
+                    return;
+                }
+                alert("Publishing initiated!");
+                window.location.reload();
+            })
+            .catch(err => {
+                console.error("Publish error:", err);
+                alert("Failed to publish from history.");
+                btnHistPublish.disabled = false;
+                btnHistPublish.textContent = "PUBLISH";
+            });
+      });
+  }
+
+  const btnHistRegen = document.getElementById('btn-hist-regen');
+  if (btnHistRegen) {
+      btnHistRegen.addEventListener('click', () => {
+          const id = btnHistRegen.getAttribute('data-id');
+          if (!id) return;
+          
+          const originalText = btnHistRegen.textContent;
+          btnHistRegen.textContent = 'REGENERATING...';
+          btnHistRegen.disabled = true;
+
+          const editedCaptionIG = document.getElementById('hist-caption-ig').value;
+          const editedCaptionX = document.getElementById('hist-caption-x').value;
+
+          fetch(`${API_BASE}/history/regen-image/${id}`, { 
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  caption_x: editedCaptionX,
+                  caption_ig: editedCaptionIG
+              })
+          })
+            .then(res => res.json())
+            .then(data => {
+                // To keep it simple, just reload to show the new image, or we can fetch the history again
+                setTimeout(() => {
+                    alert("Regenerate requested. Please wait a moment and reload or check back.");
+                    window.location.reload();
+                }, 2000);
+            })
+            .catch(err => {
+                console.error("Regen error:", err);
+                alert("Failed to regenerate image.");
+                btnHistRegen.textContent = originalText;
+                btnHistRegen.disabled = false;
+            });
+      });
   }
 
   // 2. Account Connection (Settings page)
@@ -424,10 +552,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const btnReject = document.getElementById('btn-reject');
-  if (btnReject) {
-    btnReject.addEventListener('click', () => {
-      fetch(`${API_BASE}/pipeline/reject`, { method: 'POST' })
+  const btnCancel = document.getElementById('btn-cancel');
+  if (btnCancel) {
+    btnCancel.addEventListener('click', () => {
+      fetch(`${API_BASE}/pipeline/cancel`, { method: 'POST' })
         .then(() => {
           if(hitlPanel) hitlPanel.style.display = 'none';
           if(startContainer) startContainer.style.display = 'flex';

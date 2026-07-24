@@ -7,6 +7,16 @@ import os
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+from sqlalchemy import text
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE publish_history ADD COLUMN caption_x TEXT"))
+        conn.execute(text("ALTER TABLE publish_history ADD COLUMN caption_ig TEXT"))
+        conn.execute(text("ALTER TABLE publish_history ADD COLUMN image_url VARCHAR(500)"))
+        conn.execute(text("ALTER TABLE publish_history ADD COLUMN news_title VARCHAR(255)"))
+except Exception:
+    pass
+
 frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
 app = Flask(__name__, static_folder=frontend_dir, static_url_path='')
 # Allow CORS for local HTML testing
@@ -30,7 +40,11 @@ def get_history():
                 "payload_title": r.payload_title,
                 "target_platform": r.target_platform,
                 "status": r.status,
-                "diagnostics": r.diagnostics
+                "diagnostics": r.diagnostics,
+                "caption_x": r.caption_x,
+                "caption_ig": r.caption_ig,
+                "image_url": r.image_url,
+                "news_title": r.news_title
             })
         return jsonify(result)
     finally:
@@ -411,17 +425,146 @@ def publish_pipeline():
         return jsonify({"message": "Publishing sequence initiated"})
     return jsonify({"message": "Invalid state"}), 400
 
-@app.route('/api/pipeline/reject', methods=['POST'])
-def reject_pipeline():
+@app.route('/api/pipeline/cancel', methods=['POST'])
+def cancel_pipeline():
     global pipeline_state
     if pipeline_state["status"] == "waiting_validation":
+        # Save current state to history
+        db = SessionLocal()
+        try:
+            new_record = models.PublishHistory(
+                payload_title=f"Unpublished_Agent_{uuid.uuid4().hex[:6]}",
+                target_platform="Platform X & Instagram",
+                status="UNPUBLISHED",
+                diagnostics="Cancelled during validation.",
+                caption_x=pipeline_state["data"].get("caption_x"),
+                caption_ig=pipeline_state["data"].get("caption_ig"),
+                image_url=pipeline_state["data"].get("image_url"),
+                news_title=pipeline_state["data"].get("news_title")
+            )
+            db.add(new_record)
+            db.commit()
+        finally:
+            db.close()
+
         # Reset back to idle
         pipeline_state["status"] = "idle"
         for stage in pipeline_state["stages"]:
             stage["status"] = "wait"
         pipeline_state["current_stage_index"] = -1
-        return jsonify({"message": "Pipeline rejected and reset"})
+        return jsonify({"message": "Pipeline cancelled and saved to history"})
     return jsonify({"message": "Invalid state"}), 400
+
+@app.route('/api/history/publish/<int:record_id>', methods=['POST'])
+def publish_from_history(record_id):
+    # Cek apakah ada akun yang terkoneksi sebelum lanjut upload
+    try:
+        from tools.oauth_manager import is_token_valid
+        x_connected = is_token_valid("x")
+        ig_connected = is_token_valid("ig")
+    except Exception:
+        x_connected = False
+        ig_connected = False
+
+    if not x_connected and not ig_connected:
+        return jsonify({
+            "error": "no_account_connected",
+            "message": "Tidak ada akun yang terkoneksi. Hubungkan akun X atau Instagram di halaman Settings terlebih dahulu."
+        }), 400
+
+    req_data = request.json if request.is_json else {}
+
+    db = SessionLocal()
+    try:
+        record = db.query(models.PublishHistory).filter(models.PublishHistory.id == record_id).first()
+        if not record or record.status != "UNPUBLISHED":
+            return jsonify({"error": "Invalid record"}), 400
+            
+        edited_cap_x = req_data.get("caption_x")
+        edited_cap_ig = req_data.get("caption_ig")
+        if edited_cap_x is not None:
+            record.caption_x = edited_cap_x
+        if edited_cap_ig is not None:
+            record.caption_ig = edited_cap_ig
+        db.commit()
+
+        data = {
+            "caption_x": record.caption_x,
+            "caption_ig": record.caption_ig,
+            "news_title": record.news_title,
+            "image_url": record.image_url
+        }
+        
+        def real_upload_from_history(data, rec_id):
+            try:
+                from tools.oauth_manager import is_token_valid
+                from agents.agent_upload_x import run as upload_x_run
+                from agents.agent_upload_ig import run as upload_ig_run
+                from config.schemas import CaptionX, CaptionIG, ImageGenResult
+                
+                caption_x_text = data.get("caption_x", "")
+                caption_ig_text = data.get("caption_ig", "")
+                news_title = data.get("news_title", "")
+                image_path = data.get("image_url", "")
+                
+                errors = []
+                if is_token_valid("x") and caption_x_text:
+                    try:
+                        caption_x = CaptionX(news_ref_title=news_title, caption_long=caption_x_text)
+                        result_x = upload_x_run(caption_x)
+                        if not result_x.success: errors.append(f"X: {result_x.error}")
+                    except Exception as e: errors.append(f"X upload error: {str(e)}")
+                elif caption_x_text:
+                    errors.append("X: Akun belum terkoneksi")
+
+                if is_token_valid("ig") and caption_ig_text:
+                    try:
+                        local_image_path = image_path
+                        if image_path.startswith("/api/images/"):
+                            image_filename = image_path.replace("/api/images/", "")
+                            local_image_path = str(IMAGES_DIR / image_filename)
+                        caption_ig = CaptionIG(news_ref_title=news_title, caption_short=caption_ig_text)
+                        image_result = ImageGenResult(image_path=local_image_path)
+                        result_ig = upload_ig_run(caption_ig, image_result)
+                        if not result_ig.success: errors.append(f"IG: {result_ig.error}")
+                    except Exception as e: errors.append(f"IG upload error: {str(e)}")
+                elif caption_ig_text:
+                    errors.append("IG: Akun belum terkoneksi")
+                    
+                local_db = SessionLocal()
+                try:
+                    rec = local_db.query(models.PublishHistory).filter(models.PublishHistory.id == rec_id).first()
+                    if errors:
+                        rec.status = "FAILED"
+                        rec.diagnostics = "; ".join(errors)
+                    else:
+                        rec.status = "SUCCESS"
+                        rec.diagnostics = "Published from History."
+                    local_db.commit()
+                finally:
+                    local_db.close()
+            except Exception as e:
+                local_db = SessionLocal()
+                try:
+                    rec = local_db.query(models.PublishHistory).filter(models.PublishHistory.id == rec_id).first()
+                    rec.status = "FAILED"
+                    rec.diagnostics = f"Upload failed: {str(e)}"
+                    local_db.commit()
+                finally:
+                    local_db.close()
+
+        thread = threading.Thread(target=real_upload_from_history, args=(data, record_id))
+        thread.daemon = True
+        thread.start()
+        
+        # update state immediately to progressing
+        record.status = "PUBLISHING"
+        record.diagnostics = "Upload in progress..."
+        db.commit()
+        
+        return jsonify({"message": "Publishing initiated from history"})
+    finally:
+        db.close()
 
 @app.route('/api/pipeline/regen-image', methods=['POST'])
 def regen_image():
@@ -463,6 +606,61 @@ def regen_image():
     thread.start()
     
     return jsonify({"message": "Regenerating image..."})
+@app.route('/api/history/regen-image/<int:record_id>', methods=['POST'])
+def regen_image_from_history(record_id):
+    req_data = request.json if request.is_json else {}
+
+    db = SessionLocal()
+    try:
+        record = db.query(models.PublishHistory).filter(models.PublishHistory.id == record_id).first()
+        if not record or record.status != "UNPUBLISHED":
+            return jsonify({"error": "Invalid record"}), 400
+        
+        edited_cap_x = req_data.get("caption_x")
+        edited_cap_ig = req_data.get("caption_ig")
+        if edited_cap_x is not None:
+            record.caption_x = edited_cap_x
+        if edited_cap_ig is not None:
+            record.caption_ig = edited_cap_ig
+        db.commit()
+
+        caption_ig_text = record.caption_ig or ""
+        news_title = record.news_title or ""
+        
+        def do_regen_hist(rec_id, cap_ig, title):
+            try:
+                from agents import agent_image_generation
+                from config.schemas import CaptionIG
+                import uuid
+                import os
+
+                caption_ig = CaptionIG(news_ref_title=title, caption_short=cap_ig)
+                run_id = f"regen_hist_{uuid.uuid4().hex[:8]}"
+                
+                image_result = agent_image_generation.run(caption_ig=caption_ig, run_id=run_id)
+                
+                if image_result and image_result.image_path:
+                    image_filename = os.path.basename(image_result.image_path)
+                    new_image_url = f"/api/images/{image_filename}"
+                    
+                    local_db = SessionLocal()
+                    try:
+                        rec = local_db.query(models.PublishHistory).filter(models.PublishHistory.id == rec_id).first()
+                        if rec:
+                            rec.image_url = new_image_url
+                            local_db.commit()
+                    finally:
+                        local_db.close()
+            except Exception as e:
+                print(f"Regen history image error: {e}")
+
+        thread = threading.Thread(target=do_regen_hist, args=(record_id, caption_ig_text, news_title))
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({"message": "Regenerating image for history record..."})
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     app.run(port=5001, debug=True)

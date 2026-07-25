@@ -51,6 +51,7 @@ def run(caption_ig: CaptionIG, run_id: str = "") -> ImageGenResult:
         user_message=user_message,
         response_schema=ImageGenResult,
         model=AGENT_IMAGE_GEN_MODEL,
+        agent_name="image_gen",
     )
 
     logger.info(f"Agent Image Gen: image prompt = '{llm_result.image_prompt[:100]}...'")

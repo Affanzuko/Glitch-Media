@@ -12,13 +12,13 @@ from pathlib import Path
 import requests
 
 from config.settings import (
-    IMAGE_GEN_MODEL,
     IMAGE_GEN_API_KEY,
     IMAGES_DIR,
     MAX_RETRIES,
     RETRY_BASE_DELAY,
     RETRY_MAX_DELAY,
-    IMAGE_GEN_DASHSCOPE_URL
+    IMAGE_GEN_DASHSCOPE_URL,
+    IMAGE_GEN_MODEL_CHAIN,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,13 +32,50 @@ def generate_image(
 ) -> str:
     """
     Generate gambar berdasarkan prompt dan simpan ke data/images/.
-    Secara eksklusif menggunakan provider Qwen (DashScope API).
+    Menggunakan DashScope API dengan fallback chain model.
+
+    Fallback chain (contoh): wan2.7-image-pro → Qwen-Image-3.0-Pro
+    Jika model pertama gagal (token habis, rate limit, error),
+    otomatis pindah ke model berikutnya.
     """
-    return _generate_qwen(prompt, run_id, size)
+    errors: dict[str, str] = {}
+
+    for idx, model in enumerate(IMAGE_GEN_MODEL_CHAIN):
+        label = "primary" if idx == 0 else f"fallback-{idx}"
+        logger.info(
+            f"[{label}] Image gen: mencoba model '{model}' "
+            f"({idx + 1}/{len(IMAGE_GEN_MODEL_CHAIN)})"
+        )
+        try:
+            return _generate_qwen(prompt, run_id, size, model)
+        except Exception as e:
+            error_msg = str(e)
+            errors[model] = error_msg
+            if idx < len(IMAGE_GEN_MODEL_CHAIN) - 1:
+                next_model = IMAGE_GEN_MODEL_CHAIN[idx + 1]
+                logger.warning(
+                    f"[{label}] Model '{model}' gagal. "
+                    f"Pindah ke '{next_model}'... Error: {error_msg[:200]}"
+                )
+            else:
+                logger.error(
+                    f"[{label}] Model '{model}' gagal. "
+                    f"Tidak ada model lain."
+                )
+
+    error_report = "\n".join(
+        f"  [{i+1}] {m}: {err[:150]}"
+        for i, (m, err) in enumerate(errors.items())
+    )
+    raise RuntimeError(
+        f"Image gen gagal — semua model di chain habis.\n"
+        f"Chain: {' → '.join(IMAGE_GEN_MODEL_CHAIN)}\n"
+        f"Errors:\n{error_report}"
+    )
 
 
-def _generate_qwen(prompt: str, run_id: str, size: str) -> str:
-    """Generate gambar via native DashScope API (Qwen)."""
+def _generate_qwen(prompt: str, run_id: str, size: str, model: str) -> str:
+    """Generate gambar via native DashScope API dengan model tertentu."""
     last_error: Exception | None = None
 
     # DashScope uses '*' separator (e.g. 1024*1024), not 'x'
@@ -53,7 +90,7 @@ def _generate_qwen(prompt: str, run_id: str, size: str) -> str:
 
     # Payload format DashScope untuk wan2.7-image-pro (messages-based)
     payload = {
-        "model": IMAGE_GEN_MODEL,
+        "model": model,
         "input": {
             "messages": [
                 {
@@ -76,7 +113,7 @@ def _generate_qwen(prompt: str, run_id: str, size: str) -> str:
         try:
             logger.info(
                 f"Image gen attempt {attempt}/{MAX_RETRIES} "
-                f"(provider=qwen, model={IMAGE_GEN_MODEL})"
+                f"(provider=qwen, model={model})"
             )
 
             # Step 1: Submit task

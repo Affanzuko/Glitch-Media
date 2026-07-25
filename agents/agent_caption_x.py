@@ -58,6 +58,7 @@ def run(filtered_data: FilteredData) -> CaptionX:
         user_message=user_message,
         response_schema=CaptionX,
         model=AGENT_CAPTION_X_MODEL,
+        agent_name="caption_x",
     )
 
     logger.info(f"Agent Caption X: caption dibuat untuk '{result.news_ref_title}'")

@@ -55,6 +55,7 @@ def run(raw_data: RawData) -> FilteredData:
         user_message=user_message,
         response_schema=FilteredData,
         model=AGENT_SCREENING_MODEL,
+        agent_name="screening",
     )
 
     # Post-processing: filter berdasarkan threshold dan duplikat

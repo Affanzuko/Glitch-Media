@@ -2,6 +2,11 @@
 config/settings.py
 Load .env, API keys, model name, konstanta.
 Semua konfigurasi terpusat di sini — modul lain mengimpor dari sini.
+
+Mendukung dua mode integrasi LLM:
+  - LOCAL  : via 9Router (proxy lokal, OpenAI-compatible)
+  - CLOUD  : via Alibaba Cloud DashScope compatible-mode API
+Ditentukan oleh env var LLM_PROVIDER ("local" | "cloud").
 """
 
 import os
@@ -15,22 +20,118 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Load .env dari root project
 load_dotenv(PROJECT_ROOT / ".env")
 
-# ── LLM ──────────────────────────────────────────────────────────────────────
-# Per-agent model configuration (override defaults per agent)
-AGENT_SCRAPING_MODEL: str = os.getenv("AGENT_SCRAPING_MODEL", "kr/glm-5")
-AGENT_SCREENING_MODEL: str = os.getenv("AGENT_SCREENING_MODEL", "kr/claude-sonnet-5")
-AGENT_CAPTION_X_MODEL: str = os.getenv("AGENT_CAPTION_X_MODEL", "ag/gemini-pro-agent")
-AGENT_CAPTION_IG_MODEL: str = os.getenv("AGENT_CAPTION_IG_MODEL", "ag/gemini-pro-agent")
-AGENT_UPLOAD_X_MODEL: str = os.getenv("AGENT_UPLOAD_X_MODEL", "kr/claude-haiku-4.5-agentic")
-AGENT_UPLOAD_IG_MODEL: str = os.getenv("AGENT_UPLOAD_IG_MODEL", "kr/claude-haiku-4.5-agentic")
-
-AGENT_IMAGE_GEN_MODEL: str = os.getenv("AGENT_IMAGE_GEN_MODEL")
-
-LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "10000"))
-LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.4"))
+# ── LLM Provider Mode ────────────────────────────────────────────────────────
+# "local"  → pakai 9Router (development)
+# "cloud"  → pakai Alibaba Cloud DashScope API (production / deployment)
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "local").strip().lower()
 
 # ── 9Router (Local AI Router - OpenAI-compatible) ───────────────────────────
 NINEROUTER_BASE_URL: str = os.getenv("NINEROUTER_BASE_URL", "")
+
+# ── Alibaba Cloud DashScope (Production API) ────────────────────────────────
+DASHSCOPE_API_KEY: str = os.getenv("DASHSCOPE_API_KEY", "")
+DASHSCOPE_BASE_URL: str = os.getenv(
+    "DASHSCOPE_BASE_URL",
+    "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+)
+
+# ── Per-Agent Model Configuration ────────────────────────────────────────────
+# Model ID untuk mode LOCAL (9Router proxy)
+AGENT_SCRAPING_MODEL_LOCAL: str = os.getenv("AGENT_SCRAPING_MODEL_LOCAL", "ag/gemini-pro-agent")
+AGENT_SCREENING_MODEL_LOCAL: str = os.getenv("AGENT_SCREENING_MODEL_LOCAL", "kr/glm-5")
+AGENT_CAPTION_X_MODEL_LOCAL: str = os.getenv("AGENT_CAPTION_X_MODEL_LOCAL", "ag/gemini-3.1-pro-low")
+AGENT_CAPTION_IG_MODEL_LOCAL: str = os.getenv("AGENT_CAPTION_IG_MODEL_LOCAL", "ag/gemini-3.1-pro-low")
+AGENT_IMAGE_GEN_MODEL_LOCAL: str = os.getenv("AGENT_IMAGE_GEN_MODEL_LOCAL", "ag/gemini-pro-agent")
+
+# Model ID untuk mode CLOUD (DashScope — Alibaba Cloud)
+# Daftar model: https://www.alibabacloud.com/help/en/model-studio/getting-started/models
+AGENT_SCRAPING_MODEL_CLOUD: str = os.getenv("AGENT_SCRAPING_MODEL_CLOUD", "qwen-plus")
+AGENT_SCREENING_MODEL_CLOUD: str = os.getenv("AGENT_SCREENING_MODEL_CLOUD", "deepseek-r1")
+AGENT_CAPTION_X_MODEL_CLOUD: str = os.getenv("AGENT_CAPTION_X_MODEL_CLOUD", "qwen-plus")
+AGENT_CAPTION_IG_MODEL_CLOUD: str = os.getenv("AGENT_CAPTION_IG_MODEL_CLOUD", "qwen-plus")
+AGENT_IMAGE_GEN_MODEL_CLOUD: str = os.getenv("AGENT_IMAGE_GEN_MODEL_CLOUD", "qwen-plus")
+
+# Per-Agent Fallback Chain — urutan model cadangan per agent
+# Dicoba satu per satu dari kiri ke kanan jika model utama gagal.
+_AGENT_NAMES = ["caption_x", "caption_ig", "screening", "scraping", "image_gen"]
+
+def _parse_chain(env_key: str, default: str) -> list[str]:
+    return [m.strip() for m in os.getenv(env_key, default).split(",") if m.strip()]
+
+AGENT_FALLBACK_CHAINS_LOCAL: dict[str, list[str]] = {
+    name: _parse_chain(f"AGENT_FALLBACK_{name.upper()}_LOCAL", "kr/glm-5")
+    for name in _AGENT_NAMES
+}
+AGENT_FALLBACK_CHAINS_CLOUD: dict[str, list[str]] = {
+    "caption_x":  _parse_chain("AGENT_FALLBACK_CAPTION_X_CLOUD", "qwen-max,glm-4-plus"),
+    "caption_ig": _parse_chain("AGENT_FALLBACK_CAPTION_IG_CLOUD", "qwen-max,glm-4-plus"),
+    "screening":  _parse_chain("AGENT_FALLBACK_SCREENING_CLOUD", "deepseek-v3,glm-4-plus"),
+    "scraping":   _parse_chain("AGENT_FALLBACK_SCRAPING_CLOUD", "qwen-max,glm-4-plus"),
+    "image_gen":  _parse_chain("AGENT_FALLBACK_IMAGE_GEN_CLOUD", "qwen-max,glm-4-plus"),
+}
+
+# Image generation model fallback chain (bukan LLM, tapi image gen API)
+IMAGE_GEN_MODEL_CHAIN: list[str] = _parse_chain(
+    "IMAGE_GEN_MODEL_CHAIN", "wan2.7-image-pro,qwen-image-3.0-pro"
+)
+
+
+def get_model_for_agent(agent_name: str) -> str:
+    """
+    Ambil model ID yang sesuai berdasarkan LLM_PROVIDER dan nama agent.
+
+    Args:
+        agent_name: Salah satu dari "scraping", "screening", "caption_x",
+                    "caption_ig", "image_gen".
+
+    Returns:
+        Model ID string yang siap dipakai oleh llm_client.
+    """
+    model_map_local = {
+        "scraping": AGENT_SCRAPING_MODEL_LOCAL,
+        "screening": AGENT_SCREENING_MODEL_LOCAL,
+        "caption_x": AGENT_CAPTION_X_MODEL_LOCAL,
+        "caption_ig": AGENT_CAPTION_IG_MODEL_LOCAL,
+        "image_gen": AGENT_IMAGE_GEN_MODEL_LOCAL,
+    }
+    model_map_cloud = {
+        "scraping": AGENT_SCRAPING_MODEL_CLOUD,
+        "screening": AGENT_SCREENING_MODEL_CLOUD,
+        "caption_x": AGENT_CAPTION_X_MODEL_CLOUD,
+        "caption_ig": AGENT_CAPTION_IG_MODEL_CLOUD,
+        "image_gen": AGENT_IMAGE_GEN_MODEL_CLOUD,
+    }
+
+    if LLM_PROVIDER == "cloud":
+        return model_map_cloud.get(agent_name, "qwen-turbo")
+    else:
+        return model_map_local.get(agent_name, "kr/glm-5")
+
+
+def get_fallback_chain(agent_name: str = "caption_x") -> list[str]:
+    """
+    Ambil fallback chain per agent berdasarkan provider aktif.
+
+    Args:
+        agent_name: Nama agent (caption_x, caption_ig, screening, scraping, image_gen).
+
+    Returns:
+        List model ID yang akan dicoba berurutan jika model utama gagal.
+    """
+    if LLM_PROVIDER == "cloud":
+        return AGENT_FALLBACK_CHAINS_CLOUD.get(agent_name, [])
+    return AGENT_FALLBACK_CHAINS_LOCAL.get(agent_name, [])
+
+
+# ── Backward-compatible aliases (agar agent lama tetap jalan) ────────────────
+AGENT_SCRAPING_MODEL: str = get_model_for_agent("scraping")
+AGENT_SCREENING_MODEL: str = get_model_for_agent("screening")
+AGENT_CAPTION_X_MODEL: str = get_model_for_agent("caption_x")
+AGENT_CAPTION_IG_MODEL: str = get_model_for_agent("caption_ig")
+AGENT_IMAGE_GEN_MODEL: str = get_model_for_agent("image_gen")
+
+LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "10000"))
+LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.4"))
 
 # ── Image Generation ────────────────────────────────────────────────────────
 IMAGE_GEN_MODEL: str = os.getenv("IMAGE_GEN_MODEL")

@@ -1,161 +1,93 @@
-# 🎮 Glitch Media — Multi-Agentic AI Pipeline
+# glitch-media
 
-> Otomatisasi media berita game menggunakan pipeline multi-agent AI dengan orchestration, parallel processing, dan human-in-the-loop validation.
 
-## 📋 Deskripsi
 
-Glitch Media adalah pipeline AI yang mengotomatisasi proses pengumpulan, kurasi, dan posting berita gaming ke platform X (Twitter) dan Instagram. Pipeline terdiri dari 7 agent AI yang dirangkai secara sequential dan parallel:
+## Getting started
 
-```
-[Scraping] → [Screening] → ┬─ [Caption X]  ─┬→ [HITL Gate] → ┬─ [Upload X]
-                            └─ [Caption IG] ─┤                └─ [Upload IG]
-                                              └─ [Image Gen] ─┘
-```
+To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
-## ✨ Fitur
+Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
-- **Multi-Source Scraping**: Reddit, Twitter/X, YouTube, Steam News, RSS gaming sites
-- **AI-Powered Screening**: Deduplikasi + quality scoring otomatis
-- **Parallel Caption Generation**: Caption X (panjang) dan IG (singkat) dihasilkan secara paralel
-- **AI Image Generation**: Gambar IG di-generate otomatis berdasarkan caption
-- **Human-in-the-Loop Validation**: Gate mandatory dengan UI interaktif di notebook
-- **Checkpoint & Resume**: Pipeline bisa di-resume tanpa mengulang tahap sebelumnya
-- **Structured Output**: Semua data antar-tahap menggunakan Pydantic schema enforcement
-- **Error Isolation**: Kegagalan satu agent tidak menghentikan agent paralel lainnya
+## Add your files
 
-## 🏗️ Arsitektur
+* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
+* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
 
 ```
-glitch-media/
-├── main.ipynb                     # Entry point
-├── config/
-│   ├── settings.py                # .env loading, constants
-│   ├── schemas.py                 # Pydantic schemas (kontrak data)
-│   └── prompts/                   # System prompts per agent
-├── agents/                        # 1 file = 1 agent
-├── tools/                         # API wrappers & scrapers
-│   └── scrapers/                  # Per-source scrapers
-├── pipeline/
-│   ├── state.py                   # PipelineState dataclass
-│   └── orchestrator.py            # Stage orchestration
-├── validation/
-│   └── human_validation.py        # HITL gate (ipywidgets)
-├── data/                          # Intermediate outputs
-│   ├── raw/
-│   ├── filtered/
-│   ├── captions/
-│   ├── images/
-│   └── checkpoints/
-├── logs/
-└── tests/
+cd existing_repo
+git remote add origin https://gitlab.com/papadapon/glitch-media.git
+git branch -M main
+git push -uf origin main
 ```
 
-## 🚀 Setup
+## Integrate with your tools
 
-### 1. Clone & Install
+* [Set up project integrations](https://gitlab.com/papadapon/glitch-media/-/settings/integrations)
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
-```
+## Collaborate with your team
 
-### 2. Konfigurasi API Keys
+* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
+* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
+* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
+* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
+* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
 
-```bash
-# Copy template environment variables
-cp .env.example .env
+## Test and Deploy
 
-# Edit .env dan isi API keys
-```
+Use the built-in continuous integration in GitLab.
 
-**API Keys yang dibutuhkan:**
+* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
+* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
+* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
+* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
+* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
 
-| Service | Key | Cara mendapatkan |
-|---------|-----|-----------------|
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
-| **9Router (Local AI Router)** | **`NINEROUTER_BASE_URL`** | **[9router.com](https://9router.com) (install locally via npm)** |
-| OpenAI (DALL-E) | `IMAGE_GEN_API_KEY` | [platform.openai.com](https://platform.openai.com) |
-| Twitter/X | `TWITTER_*` | [developer.twitter.com](https://developer.twitter.com) (Elevated access) |
-| Instagram | `INSTAGRAM_*` | [developers.facebook.com](https://developers.facebook.com) (Business account) |
-| Reddit | `REDDIT_*` | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) |
-| YouTube | `YOUTUBE_API_KEY` | [console.cloud.google.com](https://console.cloud.google.com) |
-| Steam | `STEAM_API_KEY` | [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) |
+***
 
-### 2a. Konfigurasi 9Router (Opsional, untuk mengurangi biaya API)
+# Editing this README
 
-9Router adalah *local AI router* yang menghubungkan ke 60+ provider AI dengan fallback otomatis (Subscription → Cheap → Free). Ini cara menggunakannya:
+When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
 
-1. **Install 9Router globally via npm:**
-   ```bash
-   npm install -g 9router
-   ```
+## Suggestions for a good README
 
-2. **Start 9Router (akan berjalan di localhost:20128):**
-   ```bash
-   9router
-   ```
+Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
 
-3. **Konfigurasi API credentials di dashboard:**
-   Buka [http://localhost:20128/dashboard](http://localhost:20128/dashboard) dan masukkan API keys provider Anda.
+## Name
+Choose a self-explaining name for your project.
 
-4. **Tambahkan ke `.env`:**
-   ```env
-   NINEROUTER_BASE_URL=http://localhost:20128/v1
-   ```
-   **Catatan:** Jika `NINEROUTER_BASE_URL` diisi, pipeline akan menggunakan 9router. Jika kosong, akan langsung ke Anthropic API (biaya lebih tinggi).
+## Description
+Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-### 3. Jalankan
+## Badges
+On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
 
-```bash
-# Buka notebook
-jupyter notebook main.ipynb
-```
+## Visuals
+Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
 
-Lalu jalankan sel-sel notebook secara berurutan.
+## Installation
+Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## 📖 Cara Kerja Pipeline
+## Usage
+Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-| Cell | Tahap | Deskripsi |
-|------|-------|-----------|
-| 1 | Setup | Import & load `.env` |
-| 2 | Init | Buat `PipelineState` dengan `run_id` unik |
-| 3 | Stage 1-2 | Scraping → Screening (sequential) |
-| 4 | Stage 3 | Caption X ∥ Caption IG (parallel fork) |
-| 5 | Stage 4 | Image Generation (sequential) |
-| 6 | Stage 5 | **HITL Gate** — Checkpoint + ACC/REJECT |
-| 7 | Stage 6 | Upload X ∥ Upload IG (parallel, jika ACC) |
-| 8 | Summary | Cetak ringkasan hasil |
+## Support
+Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-## 🔄 Resume dari Checkpoint
+## Roadmap
+If you have ideas for releases in the future, it is a good idea to list them in the README.
 
-Jika notebook terputus setelah checkpoint disimpan:
+## Contributing
+State if you are open to contributions and what your requirements are for accepting them.
 
-```python
-from validation.human_validation import load_checkpoint
+For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
 
-state = load_checkpoint("run_id_anda")
-# Lanjutkan dari stage 5 (validation)
-```
+You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
 
-## 🧪 Testing
+## Authors and acknowledgment
+Show your appreciation to those who have contributed to the project.
 
-```bash
-python -m pytest tests/ -v
-```
+## License
+For open source projects, say how it is licensed.
 
-## 📐 Design Patterns
-
-- **Sequential / Pipeline Orchestration** (prompt chaining)
-- **Parallel Fork** (Captain X ∥ Caption IG)
-- **Mandatory Human-in-the-Loop Gate** (maker–checker)
-- **Shared State Object** (PipelineState)
-- **Schema Enforcement** (Pydantic)
-- **Single Responsibility per Agent**
-- **Retry + Exponential Backoff** (tools layer)
-
-## 📚 Referensi
-
-- Microsoft Azure — AI Agent Orchestration Patterns
-- Google Cloud — Agentic AI Design Patterns
-- Google ADK — Multi-Agent Patterns
-- Pydantic AI — Multi-Agent Patterns & Schema Enforcement
+## Project status
+If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.

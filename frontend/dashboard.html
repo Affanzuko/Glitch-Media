@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glitch Media - Dashboard</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">G</div>
+      <div class="brand-text">
+        <h2>Glitch Media</h2>
+        <p>AI Automation Hub</p>
+      </div>
+    </div>
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a href="dashboard.html" class="nav-link active">Dashboard</a>
+      </li>
+      <li class="nav-item">
+        <a href="history.html" class="nav-link">History</a>
+      </li>
+      <li class="nav-item">
+        <a href="settings.html" class="nav-link">Settings</a>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <button class="btn-emergency">&#9888; EMERGENCY STOP</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <header style="margin-bottom: 2rem;">
+      <h1 class="text-white">Dashboard Overview</h1>
+      <p class="text-muted">System vitals and active operations.</p>
+    </header>
+
+    <!-- Top Row -->
+    <!-- <div style="display: grid; grid-template-columns: 1fr; gap: 2rem; margin-bottom: 2rem;">
+      <div class="panel">
+        <h4 class="text-muted" style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Total Posts
+          Generated</h4>
+        <div class="stat-card">14,208</div>
+      </div>
+    </div> -->
+
+    <!-- Pipeline Start Container -->
+    <div id="pipeline-start-container"
+      style="display: flex; justify-content: left; align-items: center; margin-bottom: 2rem; padding-top: 20px;">
+      <button id="btn-start-pipeline" class="btn btn-primary"
+        style="font-size: 1.2rem; padding: 1.4rem 2.5rem; background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));">
+        &#9654; Create Post Automatically
+      </button>
+    </div>
+
+    <!-- Pipeline Running Container -->
+    <div id="pipeline-running-container" style="display: none;">
+      <!-- Pipeline Activity -->
+      <div class="panel">
+        <h4 class="text-muted"
+          style="text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-bottom: 1.5rem;">Pipeline
+          Activity</h4>
+        <ul class="activity-list" id="pipeline-activity-list">
+          <li class="activity-item" id="stage-scraping">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Scraping Data</span>
+          </li>
+          <li class="activity-item" id="stage-screening">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Data Screening</span>
+          </li>
+          <li class="activity-item" id="stage-caption">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Caption Drafting (X & IG)</span>
+          </li>
+          <li class="activity-item" id="stage-image">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Agent Image Gen</span>
+          </li>
+          <li class="activity-item" id="stage-validation">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Validation</span>
+          </li>
+          <li class="activity-item" id="stage-upload">
+            <div class="status-icon wait"></div>
+            <span class="text-muted">Final Upload</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- HITL Validation -->
+      <div id="hitl-validation-panel" class="panel"
+        style="display: none; border: 1px solid var(--accent-purple); box-shadow: 0 0 20px rgba(182, 36, 255, 0.1);">
+        <h3
+          style="display: flex; align-items: center; gap: 0.5rem; color: #fff; margin-bottom: 3rem;">
+          Human-in-the-Loop Validation <span id="val-news-title"
+            style="font-size: 0.9rem; color: var(--text-muted); font-weight: normal; margin-left: auto;"></span>
+        </h3>
+
+        <div class="hitl-grid">
+          <!-- Captions Column -->
+          <div>
+            <div class="form-group">
+              <label class="form-label">X (TWITTER) CAPTION</label>
+              <textarea id="val-caption-x" class="form-control" style="min-height: 200px;"></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 1.5rem;">
+              <label class="form-label">INSTAGRAM CAPTION</label>
+              <textarea id="val-caption-ig" class="form-control" style="min-height: 315px;"></textarea>
+            </div>
+          </div>
+
+          <!-- Image Preview Column -->
+          <div>
+            <label class="form-label">IMAGE PREVIEW</label>
+            <div class="image-preview" style="background: transparent;">
+              <img id="val-image" src="" alt="AI Generated Preview"
+                style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px; display: none;">
+
+              <div id="val-image-placeholder"
+                style="width: 100%; height: 100%; background: linear-gradient(45deg, #12002b, #002b36, #200022); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; border-radius: 8px;">
+                <span style="font-size: 3rem; opacity: 0.5;">🌃</span>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">AI GENERATED PREVIEW</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="hitl-actions">
+          <button id="btn-cancel" class="btn btn-outline"
+            style="color: var(--accent-red); border-color: rgba(255,51,102,0.3);">CANCEL</button>
+          <button id="btn-regen" class="btn btn-outline">REGENERATE IMAGE</button>
+          <button id="btn-accept" class="btn btn-primary"
+            style="background: rgba(182,36,255,0.2); border: 1px solid var(--accent-purple);">ACCEPT & PUBLISH</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <style>
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
+  </style>
+  <script src="assets/js/main.js"></script>
+</body>
+
+</html>

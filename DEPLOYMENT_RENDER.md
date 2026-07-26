@@ -35,7 +35,9 @@ Kode sudah disiapkan. Pastikan:
    - `DATABASE_URL` = (URL dari Aiven di Tahap 1)
    - `LLM_PROVIDER` = `cloud`
    - `DASHSCOPE_API_KEY` = (Key kamu)
+   - `DASHSCOPE_BASE_URL` = `https://ws-g7x89ret3ana07j0.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`
    - `IMAGE_GEN_API_KEY` = (Key kamu)
+   - `IMAGE_GEN_DASHSCOPE_URL` = `https://ws-g7x89ret3ana07j0.ap-southeast-1.maas.aliyuncs.com/api/v1/services/aigc/image-generation/generation`
    - `X_OAUTH_REDIRECT_URI` = `https://glitch-media.onrender.com/callback/x`
    - `IG_OAUTH_REDIRECT_URI` = `https://glitch-media.onrender.com/callback/ig`
    - *(Masukkan juga API Key Twitter, IG, Reddit, dll)*

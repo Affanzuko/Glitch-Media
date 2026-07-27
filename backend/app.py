@@ -407,7 +407,7 @@ def publish_pipeline():
 
                 if errors:
                     stages[5]["status"] = "done"
-                    pipeline_state["status"] = "complete"
+                    pipeline_state["status"] = "error"
                     pipeline_state["error_message"] = "; ".join(errors)
                 else:
                     stages[5]["status"] = "done"
@@ -477,7 +477,7 @@ def publish_from_history(record_id):
     db = SessionLocal()
     try:
         record = db.query(models.PublishHistory).filter(models.PublishHistory.id == record_id).first()
-        if not record or record.status != "UNPUBLISHED":
+        if not record or record.status not in ("UNPUBLISHED", "FAILED"):
             return jsonify({"error": "Invalid record"}), 400
             
         edited_cap_x = req_data.get("caption_x")

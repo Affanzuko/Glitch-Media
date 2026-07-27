@@ -32,6 +32,9 @@ def _get_client():
     """
     Lazy-init Tweepy Client.
     Prioritas: OAuth 2.0 user token (dari login) > OAuth 1.0a static keys (.env).
+    
+    Untuk OAuth 2.0 PKCE user token, kita return dict mode info.
+    Tweepy Client hanya dipakai untuk OAuth 1.0a.
     """
     import tweepy
     from tools.oauth_manager import get_access_token
@@ -42,18 +45,12 @@ def _get_client():
     oauth2_token = get_access_token("x")
 
     if oauth2_token:
-        # Jika client belum ada atau mode berubah, buat ulang
+        # OAuth 2.0 User Context — simpan token saja, 
+        # posting via direct API call (bukan Tweepy Client)
         if _client is None or _client_mode != "oauth2_user":
-            _client = tweepy.Client(
-                bearer_token=oauth2_token,
-                consumer_key=TWITTER_API_KEY or None,
-                consumer_secret=TWITTER_API_SECRET or None,
-            )
-            # Tweepy Client perlu access_token untuk posting via OAuth 2.0
-            # Gunakan OAuth 2.0 User Context
-            _client = tweepy.Client(oauth2_token)
+            _client = {"oauth2_token": oauth2_token}
             _client_mode = "oauth2_user"
-            logger.info("X client initialized with OAuth 2.0 user token")
+            logger.info("X client initialized with OAuth 2.0 user token (direct API)")
         return _client
 
     # Fallback ke OAuth 1.0a static keys
@@ -82,6 +79,49 @@ def reset_client():
     _client_mode = None
 
 
+def _post_tweet_oauth2(token: str, text: str, reply_to: str | None = None) -> dict:
+    """Post tweet via Twitter API v2 menggunakan OAuth 2.0 User Context (direct HTTP)."""
+    import requests as http_requests
+
+    url = "https://api.twitter.com/2/tweets"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    payload = {"text": text}
+    if reply_to:
+        payload["reply"] = {"in_reply_to_tweet_id": reply_to}
+
+    resp = http_requests.post(url, json=payload, headers=headers, timeout=30)
+
+    if resp.status_code == 429:
+        raise Exception(f"Rate limited (429). Retry-After: {resp.headers.get('Retry-After', 'unknown')}")
+
+    if resp.status_code not in (200, 201):
+        error_detail = resp.text
+        try:
+            error_json = resp.json()
+            error_detail = error_json.get("detail", error_json.get("title", resp.text))
+        except Exception:
+            pass
+        raise Exception(f"{resp.status_code} {error_detail}")
+
+    data = resp.json().get("data", {})
+    tweet_id = data.get("id")
+    return {"tweet_id": tweet_id, "post_url": f"https://twitter.com/i/status/{tweet_id}"}
+
+
+def _post_tweet_tweepy(client, text: str, reply_to: str | None = None) -> dict:
+    """Post tweet via Tweepy Client (OAuth 1.0a)."""
+    kwargs = {"text": text}
+    if reply_to:
+        kwargs["in_reply_to_tweet_id"] = reply_to
+
+    response = client.create_tweet(**kwargs)
+    tweet_id = response.data["id"]
+    return {"tweet_id": tweet_id, "post_url": f"https://twitter.com/i/status/{tweet_id}"}
+
+
 def post_tweet(text: str) -> dict:
     """
     Post tweet ke X/Twitter.
@@ -96,7 +136,7 @@ def post_tweet(text: str) -> dict:
         RuntimeError: Jika semua retry gagal.
     """
     client = _get_client()
-    import tweepy
+    is_oauth2 = isinstance(client, dict)
 
     last_error: Exception | None = None
 
@@ -104,36 +144,24 @@ def post_tweet(text: str) -> dict:
         try:
             logger.info(f"X posting attempt {attempt}/{MAX_RETRIES}")
 
-            response = client.create_tweet(text=text)
+            if is_oauth2:
+                result = _post_tweet_oauth2(client["oauth2_token"], text)
+            else:
+                result = _post_tweet_tweepy(client, text)
 
-            tweet_id = response.data["id"]
-            # Ambil username dari auth user (opsional, bisa di-hardcode)
-            post_url = f"https://twitter.com/i/status/{tweet_id}"
-
-            logger.info(f"Tweet posted successfully: {post_url}")
+            logger.info(f"Tweet posted successfully: {result['post_url']}")
             return {
                 "success": True,
-                "post_url": post_url,
-                "tweet_id": tweet_id,
+                "post_url": result["post_url"],
+                "tweet_id": result["tweet_id"],
             }
-
-        except tweepy.TooManyRequests as e:
-            last_error = e
-            delay = min(RETRY_BASE_DELAY * (2 ** (attempt - 1)), RETRY_MAX_DELAY)
-            logger.warning(f"X rate limited, retry in {delay}s")
-            time.sleep(delay)
-
-        except tweepy.TweepyException as e:
-            last_error = e
-            delay = min(RETRY_BASE_DELAY * (2 ** (attempt - 1)), RETRY_MAX_DELAY)
-            logger.warning(f"X API error, retry in {delay}s: {e}")
-            time.sleep(delay)
 
         except Exception as e:
             last_error = e
-            logger.error(f"X unexpected error on attempt {attempt}: {e}")
+            delay = min(RETRY_BASE_DELAY * (2 ** (attempt - 1)), RETRY_MAX_DELAY)
+            logger.warning(f"X API error on attempt {attempt}: {e}")
             if attempt < MAX_RETRIES:
-                time.sleep(RETRY_BASE_DELAY)
+                time.sleep(delay)
 
     raise RuntimeError(
         f"X posting gagal setelah {MAX_RETRIES} attempts. Last error: {last_error}"
@@ -151,7 +179,7 @@ def post_thread(tweets: list[str]) -> dict:
         Dict dengan 'success', 'post_url' (URL tweet pertama), dan 'tweet_ids'.
     """
     client = _get_client()
-    import tweepy
+    is_oauth2 = isinstance(client, dict)
 
     tweet_ids: list[str] = []
     reply_to: str | None = None
@@ -161,28 +189,24 @@ def post_thread(tweets: list[str]) -> dict:
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                kwargs = {"text": text}
-                if reply_to:
-                    kwargs["in_reply_to_tweet_id"] = reply_to
+                if is_oauth2:
+                    result = _post_tweet_oauth2(client["oauth2_token"], text, reply_to=reply_to)
+                else:
+                    result = _post_tweet_tweepy(client, text, reply_to=reply_to)
 
-                response = client.create_tweet(**kwargs)
-                tweet_id = response.data["id"]
+                tweet_id = result["tweet_id"]
                 tweet_ids.append(tweet_id)
                 reply_to = tweet_id
 
                 logger.info(f"Thread tweet {i+1}/{len(tweets)} posted: {tweet_id}")
                 break
 
-            except tweepy.TooManyRequests as e:
-                last_error = e
-                delay = min(RETRY_BASE_DELAY * (2 ** (attempt - 1)), RETRY_MAX_DELAY)
-                logger.warning(f"X rate limited on tweet {i+1}, retry in {delay}s")
-                time.sleep(delay)
-
             except Exception as e:
                 last_error = e
                 if attempt < MAX_RETRIES:
-                    time.sleep(RETRY_BASE_DELAY)
+                    delay = min(RETRY_BASE_DELAY * (2 ** (attempt - 1)), RETRY_MAX_DELAY)
+                    logger.warning(f"X error on tweet {i+1}, attempt {attempt}, retry in {delay}s: {e}")
+                    time.sleep(delay)
         else:
             raise RuntimeError(
                 f"X thread posting gagal pada tweet {i+1}. Last error: {last_error}"
@@ -194,3 +218,4 @@ def post_thread(tweets: list[str]) -> dict:
         "post_url": first_url,
         "tweet_ids": tweet_ids,
     }
+

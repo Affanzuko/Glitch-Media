@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, redirect, url_for, send_from_directory
 from flask_cors import CORS
-from database import engine, SessionLocal, Base
-import models
+from backend.database import engine, SessionLocal, Base
+import backend.models as models
 import os
 
 # Create database tables

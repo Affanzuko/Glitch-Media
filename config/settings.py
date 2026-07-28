@@ -148,7 +148,7 @@ TWITTER_BEARER_TOKEN: str = os.getenv("TWITTER_BEARER_TOKEN", "")
 # ── Twitter / X OAuth 2.0 (User login via browser) ──────────────────────────
 X_OAUTH_CLIENT_ID: str = os.getenv("X_OAUTH_CLIENT_ID", "")
 X_OAUTH_CLIENT_SECRET: str = os.getenv("X_OAUTH_CLIENT_SECRET", "")
-X_OAUTH_REDIRECT_URI: str = os.getenv("X_OAUTH_REDIRECT_URI", "http://localhost:9274/callback/x")
+X_OAUTH_REDIRECT_URI: str = os.getenv("X_OAUTH_REDIRECT_URI", "http://127.0.0.1:9274/callback/x")
 
 # ── Instagram Graph API ──────────────────────────────────────────────────────
 INSTAGRAM_ACCESS_TOKEN: str = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
@@ -157,7 +157,7 @@ INSTAGRAM_BUSINESS_ACCOUNT_ID: str = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID", 
 # ── Instagram OAuth (Facebook Login) ─────────────────────────────────────────
 IG_OAUTH_APP_ID: str = os.getenv("IG_OAUTH_APP_ID", "")
 IG_OAUTH_APP_SECRET: str = os.getenv("IG_OAUTH_APP_SECRET", "")
-IG_OAUTH_REDIRECT_URI: str = os.getenv("IG_OAUTH_REDIRECT_URI", "http://localhost:9274/callback/ig")
+IG_OAUTH_REDIRECT_URI: str = os.getenv("IG_OAUTH_REDIRECT_URI", "http://127.0.0.1:9274/callback/ig")
 
 # ── OAuth Server ─────────────────────────────────────────────────────────────
 OAUTH_SERVER_PORT: int = int(os.getenv("OAUTH_SERVER_PORT", "9274"))

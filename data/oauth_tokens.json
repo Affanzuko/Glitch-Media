@@ -1,0 +1,15 @@
+{
+  "x": {
+    "access_token": "cXBncVo5dDFEdTlnUmNvNS03N3d6UlpvZTZYQnR5MnZfcjhtZEsyeG5wWjRwOjE3ODUxMjIwNjE0MjM6MToxOmF0OjE",
+    "refresh_token": "OFh1OVlVamZRS0NFc3hGMVc3YVFqVTBOZmZWWHNIZ2JUaXNsNmZkQi1HNHg2OjE3ODUxMjIwNjE0MjQ6MTowOnJ0OjE",
+    "expires_at": 1785129261.7903068,
+    "token_type": "bearer",
+    "scope": "tweet.write users.read tweet.read offline.access",
+    "account_info": {
+      "user_id": "2077413002115235840",
+      "username": "glitchmediaori",
+      "display_name": "glitch media"
+    },
+    "saved_at": 1785122061.7918153
+  }
+}

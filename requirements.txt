@@ -19,6 +19,7 @@ Flask-Cors>=4.0
 Werkzeug>=3.0
 SQLAlchemy>=2.0
 PyMySQL>=1.1
+gunicorn>=21.2.0
 
 # ── Notebook ──────────────────────────────────────────────────────────────────
 jupyter>=1.0

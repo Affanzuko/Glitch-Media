@@ -18,8 +18,29 @@ logger = logging.getLogger(__name__)
 # ── Shared state untuk OAuth flow ────────────────────────────────────────────
 _oauth_state: dict = {}
 _oauth_result: dict = {}
+_pkce_store: dict = {}
 _server_thread: threading.Thread | None = None
 _shutdown_event = threading.Event()
+
+
+def _get_shared_state() -> tuple[dict, dict, dict]:
+    """
+    Return (oauth_state, oauth_result, pkce_store) dicts.
+    Di production (Render), return dict dari backend.app agar sinkron
+    dengan callback routes. Di lokal, return local dicts.
+    """
+    import os as _os
+    if _os.environ.get("RENDER"):
+        try:
+            from backend.app import (
+                _oauth_state as prod_state,
+                _oauth_result as prod_result,
+                _pkce_store as prod_pkce,
+            )
+            return prod_state, prod_result, prod_pkce
+        except ImportError:
+            pass
+    return _oauth_state, _oauth_result, _pkce_store
 
 
 def _create_app() -> Flask:
@@ -136,28 +157,12 @@ def wait_for_callback(platform: str, timeout: int = 120) -> dict:
     Returns:
         Dict dengan 'code' atau 'error'.
     """
-    import os
-    
-    # Jika di production (Render), cek state global dari backend/app.py
-    if os.environ.get("RENDER"):
-        import sys
-        # Coba import _oauth_result dari backend.app
-        try:
-            from backend.app import _oauth_result as prod_oauth_result
-            start = time.time()
-            while time.time() - start < timeout:
-                if platform in prod_oauth_result:
-                    return prod_oauth_result[platform]
-                time.sleep(0.5)
-            return {"error": f"Timeout — tidak ada response dari {platform} dalam {timeout} detik."}
-        except ImportError:
-            pass
+    _, result_store, _ = _get_shared_state()
 
-    # Fallback ke local state
     start = time.time()
     while time.time() - start < timeout:
-        if platform in _oauth_result:
-            return _oauth_result[platform]
+        if platform in result_store:
+            return result_store[platform]
         time.sleep(0.5)
     return {"error": f"Timeout — tidak ada response dari {platform} dalam {timeout} detik."}
 
@@ -165,23 +170,13 @@ def wait_for_callback(platform: str, timeout: int = 120) -> dict:
 def generate_state(platform: str) -> str:
     """Generate dan simpan CSRF state token."""
     state = secrets.token_urlsafe(32)
-    _oauth_state[platform] = state
-    
-    import os
-    if os.environ.get("RENDER"):
-        try:
-            from backend.app import _oauth_state as prod_oauth_state
-            prod_oauth_state[platform] = state
-        except ImportError:
-            pass
-            
+    state_store, _, _ = _get_shared_state()
+    state_store[platform] = state
     return state
 
 
 # ── X/Twitter OAuth 2.0 PKCE ────────────────────────────────────────────────
 
-# Shared state untuk split initiate/complete flow (web UI)
-_pkce_store: dict = {}
 
 
 def initiate_x_login() -> dict:
@@ -212,7 +207,8 @@ def initiate_x_login() -> dict:
     state = generate_state("x")
 
     # Simpan code_verifier untuk dipakai saat exchange
-    _pkce_store["x_code_verifier"] = code_verifier
+    _, _, pkce_store = _get_shared_state()
+    pkce_store["x_code_verifier"] = code_verifier
 
     # Build authorization URL
     auth_params = {
@@ -263,7 +259,8 @@ def complete_x_login(timeout: int = 120) -> dict:
             return {"error": result["error"]}
 
         code = result["code"]
-        code_verifier = _pkce_store.get("x_code_verifier", "")
+        _, _, pkce_store = _get_shared_state()
+        code_verifier = pkce_store.get("x_code_verifier", "")
 
         # Exchange code for token
         logger.info("Exchanging X authorization code for access token...")

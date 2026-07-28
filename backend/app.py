@@ -34,6 +34,11 @@ app = Flask(__name__, static_folder=frontend_dir, static_url_path='')
 # Allow CORS for local HTML testing
 CORS(app)
 
+# Ensure all data directories exist (Render doesn't use Dockerfile's mkdir)
+from config.settings import DATA_DIR, RAW_DIR, FILTERED_DIR, CAPTIONS_DIR, IMAGES_DIR, CHECKPOINTS_DIR, LOGS_DIR
+for _dir in [DATA_DIR, RAW_DIR, FILTERED_DIR, CAPTIONS_DIR, IMAGES_DIR, CHECKPOINTS_DIR, LOGS_DIR]:
+    _dir.mkdir(parents=True, exist_ok=True)
+
 @app.route('/')
 def index():
     return app.send_static_file('dashboard.html')

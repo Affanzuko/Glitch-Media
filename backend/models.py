@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime
-from backend.database import Base
+from database import Base
 import datetime
 
 class PublishHistory(Base):

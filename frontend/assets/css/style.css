@@ -222,7 +222,7 @@ textarea.form-control {
 /* Buttons */
 .btn {
   display: inline-flex;
-  align-items: center;  
+  align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 0.8rem 1.5rem;
@@ -335,8 +335,13 @@ textarea.form-control {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .status-icon.wait {
@@ -379,7 +384,54 @@ textarea.form-control {
 .history-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
+
+.history-table th,
+.history-table td {
+  vertical-align: middle;
+}
+
+.history-table th:nth-child(1),
+.history-table td:nth-child(1) {
+  width: 130px;
+}
+
+/* Date/Time */
+
+.history-table th:nth-child(2),
+.history-table td:nth-child(2) {
+  width: 15%;
+}
+
+/* Payload Title — takes remaining space */
+
+.history-table th:nth-child(3),
+.history-table td:nth-child(3) {
+  width: 200px;
+}
+
+/* Target */
+
+.history-table th:nth-child(4),
+.history-table td:nth-child(4) {
+  width: 180px;
+}
+
+/* Status */
+
+.history-table th:nth-child(5),
+.history-table td:nth-child(5) {}
+
+/* Diagnostics — narrower */
+
+.history-table th:nth-child(6),
+.history-table td:nth-child(6) {
+  width: 150px;
+  text-align: center;
+}
+
+/* Action */
 
 .history-table th {
   text-align: left;
@@ -388,12 +440,27 @@ textarea.form-control {
   font-size: 0.8rem;
   text-transform: uppercase;
   border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
 }
 
 .history-table td {
   padding: 1rem;
   border-bottom: 1px solid var(--border-color);
   font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-table td:nth-child(5) {
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.4;
+  font-size: 0.8rem;
+  vertical-align: top;
+  padding-top: 1.1rem;
 }
 
 .badge {
@@ -414,6 +481,12 @@ textarea.form-control {
   background: rgba(255, 51, 102, 0.1);
   color: var(--accent-red);
   border-color: rgba(255, 51, 102, 0.3);
+}
+
+.badge-unpublished {
+  background: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, 0.3);
 }
 
 /* Settings specific */

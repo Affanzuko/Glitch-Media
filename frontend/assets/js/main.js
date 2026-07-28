@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   // Setup password visibility toggles
   const eyeIcons = document.querySelectorAll('.input-with-icon .icon');
-  
+
   eyeIcons.forEach(icon => {
     icon.addEventListener('click', (e) => {
       const input = e.target.previousElementSibling;
@@ -38,29 +38,31 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(data => {
         globalHistoryRecords = data;
         historyTbody.innerHTML = '';
-        if(data.length === 0) {
-            historyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No records found.</td></tr>';
+        if (data.length === 0) {
+          historyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No records found.</td></tr>';
         }
         data.forEach(item => {
           const { date, time } = formatDate(item.created_at);
-          const badgeClass = item.status === 'SUCCESS' ? 'badge-success' : 'badge-failed';
+          const badgeClass = item.status === 'SUCCESS' ? 'badge-success' : (item.status === 'UNPUBLISHED' ? 'badge-unpublished' : 'badge-failed');
           const diagStyle = item.status === 'SUCCESS' ? 'color: var(--text-muted);' : 'color: var(--accent-red);';
-          
-          let actionHtml = `<td><span style="color: var(--text-muted); cursor: pointer;">&gt;</span></td>`;
+
+          let actionHtml = `<td><span style="color: var(--text-muted); cursor: pointer;"></span></td>`;
           if (item.status === 'UNPUBLISHED') {
-              actionHtml = `<td><button class="btn btn-primary" onclick="publishFromHistory(${item.id})" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Publish</button></td>`;
+            actionHtml = `<td><button class="btn btn-primary" onclick="publishFromHistory(${item.id})" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Publish</button></td>`;
+          } else if (item.status === 'FAILED') {
+            actionHtml = `<td><button class="btn btn-primary" onclick="publishFromHistory(${item.id})" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">Retry</button></td>`;
           }
 
           historyTbody.innerHTML += `
             <tr>
-              <td>
+              <td style="white-space: normal;">
                 <div style="font-weight: 500;">${date}</div>
                 <div class="text-muted" style="font-size: 0.75rem;">${time}</div>
               </td>
-              <td style="font-weight: 500;">${item.payload_title}</td>
+              <td style="font-weight: 500;" title="${item.payload_title}">${item.payload_title}</td>
               <td class="text-muted">${item.target_platform}</td>
               <td><span class="badge ${badgeClass}">● ${item.status}</span></td>
-              <td style="font-size: 0.8rem; ${diagStyle}">${item.diagnostics}</td>
+              <td style="font-size: 0.8rem; ${diagStyle}" title="${item.diagnostics}">${item.diagnostics}</td>
               ${actionHtml}
             </tr>
           `;
@@ -69,124 +71,124 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => console.error("Failed to fetch history", err));
   }
 
-  window.publishFromHistory = function(id) {
-      const record = globalHistoryRecords.find(r => r.id === id);
-      if (!record) return;
+  window.publishFromHistory = function (id) {
+    const record = globalHistoryRecords.find(r => r.id === id);
+    if (!record) return;
 
-      const overlay = document.getElementById('history-popup-overlay');
-      if (overlay) {
-          document.getElementById('hist-news-title').innerText = "- " + (record.news_title || "");
-          document.getElementById('hist-caption-x').value = record.caption_x || "";
-          document.getElementById('hist-caption-ig').value = record.caption_ig || "";
+    const overlay = document.getElementById('history-popup-overlay');
+    if (overlay) {
+      document.getElementById('hist-news-title').innerText = "- " + (record.news_title || "");
+      document.getElementById('hist-caption-x').value = record.caption_x || "";
+      document.getElementById('hist-caption-ig').value = record.caption_ig || "";
 
-          const imgEl = document.getElementById('hist-image');
-          const placeholderEl = document.getElementById('hist-image-placeholder');
-          if (record.image_url) {
-              imgEl.src = record.image_url.startsWith('http') ? record.image_url : API_BASE.replace('/api', '') + record.image_url;
-              imgEl.style.display = 'block';
-              if(placeholderEl) placeholderEl.style.display = 'none';
-          } else {
-              imgEl.style.display = 'none';
-              if(placeholderEl) placeholderEl.style.display = 'flex';
-          }
-
-          document.getElementById('btn-hist-publish').setAttribute('data-id', id);
-          document.getElementById('btn-hist-regen').setAttribute('data-id', id);
-
-          overlay.style.display = 'flex';
+      const imgEl = document.getElementById('hist-image');
+      const placeholderEl = document.getElementById('hist-image-placeholder');
+      if (record.image_url) {
+        imgEl.src = record.image_url.startsWith('http') ? record.image_url : API_BASE.replace('/api', '') + record.image_url;
+        imgEl.style.display = 'block';
+        if (placeholderEl) placeholderEl.style.display = 'none';
+      } else {
+        imgEl.style.display = 'none';
+        if (placeholderEl) placeholderEl.style.display = 'flex';
       }
+
+      document.getElementById('btn-hist-publish').setAttribute('data-id', id);
+      document.getElementById('btn-hist-regen').setAttribute('data-id', id);
+
+      overlay.style.display = 'flex';
+    }
   };
 
   const btnHistCancel = document.getElementById('btn-hist-cancel');
   if (btnHistCancel) {
-      btnHistCancel.addEventListener('click', () => {
-          document.getElementById('history-popup-overlay').style.display = 'none';
-      });
+    btnHistCancel.addEventListener('click', () => {
+      document.getElementById('history-popup-overlay').style.display = 'none';
+    });
   }
 
   const btnHistPublish = document.getElementById('btn-hist-publish');
   if (btnHistPublish) {
-      btnHistPublish.addEventListener('click', () => {
-          const id = btnHistPublish.getAttribute('data-id');
-          if (!id) return;
-          if(!confirm("Publish this agent now?")) return;
-          
-          btnHistPublish.disabled = true;
-          btnHistPublish.textContent = "PUBLISHING...";
+    btnHistPublish.addEventListener('click', () => {
+      const id = btnHistPublish.getAttribute('data-id');
+      if (!id) return;
+      if (!confirm("Publish this agent now?")) return;
 
-          const editedCaptionX = document.getElementById('hist-caption-x').value;
-          const editedCaptionIG = document.getElementById('hist-caption-ig').value;
+      btnHistPublish.disabled = true;
+      btnHistPublish.textContent = "PUBLISHING...";
 
-          fetch(`${API_BASE}/history/publish/${id}`, { 
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  caption_x: editedCaptionX,
-                  caption_ig: editedCaptionIG
-              })
-          })
-            .then(res => res.json().then(data => ({ ok: res.ok, data })))
-            .then(({ ok, data }) => {
-                if (!ok && data.error === 'no_account_connected') {
-                    showNoAccountAlert(data.message);
-                    btnHistPublish.disabled = false;
-                    btnHistPublish.textContent = "PUBLISH";
-                    return;
-                }
-                if(!ok) {
-                    alert("Error: " + data.error);
-                    btnHistPublish.disabled = false;
-                    btnHistPublish.textContent = "PUBLISH";
-                    return;
-                }
-                alert("Publishing initiated!");
-                window.location.reload();
-            })
-            .catch(err => {
-                console.error("Publish error:", err);
-                alert("Failed to publish from history.");
-                btnHistPublish.disabled = false;
-                btnHistPublish.textContent = "PUBLISH";
-            });
-      });
+      const editedCaptionX = document.getElementById('hist-caption-x').value;
+      const editedCaptionIG = document.getElementById('hist-caption-ig').value;
+
+      fetch(`${API_BASE}/history/publish/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caption_x: editedCaptionX,
+          caption_ig: editedCaptionIG
+        })
+      })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok && data.error === 'no_account_connected') {
+            showNoAccountAlert(data.message);
+            btnHistPublish.disabled = false;
+            btnHistPublish.textContent = "PUBLISH";
+            return;
+          }
+          if (!ok) {
+            alert("Error: " + data.error);
+            btnHistPublish.disabled = false;
+            btnHistPublish.textContent = "PUBLISH";
+            return;
+          }
+          alert("Publishing initiated!");
+          window.location.reload();
+        })
+        .catch(err => {
+          console.error("Publish error:", err);
+          alert("Failed to publish from history.");
+          btnHistPublish.disabled = false;
+          btnHistPublish.textContent = "PUBLISH";
+        });
+    });
   }
 
   const btnHistRegen = document.getElementById('btn-hist-regen');
   if (btnHistRegen) {
-      btnHistRegen.addEventListener('click', () => {
-          const id = btnHistRegen.getAttribute('data-id');
-          if (!id) return;
-          
-          const originalText = btnHistRegen.textContent;
-          btnHistRegen.textContent = 'REGENERATING...';
-          btnHistRegen.disabled = true;
+    btnHistRegen.addEventListener('click', () => {
+      const id = btnHistRegen.getAttribute('data-id');
+      if (!id) return;
 
-          const editedCaptionIG = document.getElementById('hist-caption-ig').value;
-          const editedCaptionX = document.getElementById('hist-caption-x').value;
+      const originalText = btnHistRegen.textContent;
+      btnHistRegen.textContent = 'REGENERATING...';
+      btnHistRegen.disabled = true;
 
-          fetch(`${API_BASE}/history/regen-image/${id}`, { 
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  caption_x: editedCaptionX,
-                  caption_ig: editedCaptionIG
-              })
-          })
-            .then(res => res.json())
-            .then(data => {
-                // To keep it simple, just reload to show the new image, or we can fetch the history again
-                setTimeout(() => {
-                    alert("Regenerate requested. Please wait a moment and reload or check back.");
-                    window.location.reload();
-                }, 2000);
-            })
-            .catch(err => {
-                console.error("Regen error:", err);
-                alert("Failed to regenerate image.");
-                btnHistRegen.textContent = originalText;
-                btnHistRegen.disabled = false;
-            });
-      });
+      const editedCaptionIG = document.getElementById('hist-caption-ig').value;
+      const editedCaptionX = document.getElementById('hist-caption-x').value;
+
+      fetch(`${API_BASE}/history/regen-image/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caption_x: editedCaptionX,
+          caption_ig: editedCaptionIG
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          // To keep it simple, just reload to show the new image, or we can fetch the history again
+          setTimeout(() => {
+            alert("Regenerate requested. Please wait a moment and reload or check back.");
+            window.location.reload();
+          }, 2000);
+        })
+        .catch(err => {
+          console.error("Regen error:", err);
+          alert("Failed to regenerate image.");
+          btnHistRegen.textContent = originalText;
+          btnHistRegen.disabled = false;
+        });
+    });
   }
 
   // 2. Account Connection (Settings page)
@@ -265,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Expose connect/disconnect to global scope for onclick handlers
-  window.connectAccount = function(platform) {
+  window.connectAccount = function (platform) {
     const btnConnect = document.getElementById(`btn-connect-${platform}`);
     const statusEl = document.getElementById(`status-${platform}`);
     const card = document.getElementById(`card-${platform}`);
@@ -332,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   };
 
-  window.disconnectAccount = function(platform) {
+  window.disconnectAccount = function (platform) {
     if (!confirm(`Disconnect ${platform === 'x' ? 'X/Twitter' : 'Instagram'} account?`)) return;
 
     const btnDisconnect = document.getElementById(`btn-disconnect-${platform}`);
@@ -358,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const runningContainer = document.getElementById('pipeline-running-container');
   const hitlPanel = document.getElementById('hitl-validation-panel');
   const btnStart = document.getElementById('btn-start-pipeline');
-  
+
   let pollingInterval = null;
 
   const updateStageUI = (stageId, status, name) => {
@@ -366,9 +368,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!el) return;
     const icon = el.querySelector('.status-icon');
     const span = el.querySelector('span');
-    
+
     icon.className = 'status-icon ' + status;
-    
+
     if (status === 'done') {
       icon.innerHTML = '&#10003;';
       span.className = '';
@@ -389,11 +391,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(res => res.json())
       .then(data => {
         if (data.status !== 'idle') {
-          if(startContainer) startContainer.style.display = 'none';
-          if(runningContainer) runningContainer.style.display = 'block';
+          if (startContainer) startContainer.style.display = 'none';
+          if (runningContainer) runningContainer.style.display = 'block';
         } else {
-          if(startContainer) startContainer.style.display = 'flex';
-          if(runningContainer) runningContainer.style.display = 'none';
+          if (startContainer) startContainer.style.display = 'flex';
+          if (runningContainer) runningContainer.style.display = 'none';
         }
 
         data.stages.forEach(stage => {
@@ -401,8 +403,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (data.status === 'waiting_validation') {
-          if(hitlPanel) hitlPanel.style.display = 'block';
-          
+          if (hitlPanel) hitlPanel.style.display = 'block';
+
           // Populate data from real AI
           const titleEl = document.getElementById('val-news-title');
           const capXEl = document.getElementById('val-caption-x');
@@ -410,40 +412,40 @@ document.addEventListener('DOMContentLoaded', () => {
           const imgEl = document.getElementById('val-image');
           const imgPlaceholder = document.getElementById('val-image-placeholder');
 
-          if(titleEl) titleEl.innerText = "- " + data.data.news_title;
-          if(capXEl) capXEl.value = data.data.caption_x;
-          if(capIGEl) capIGEl.value = data.data.caption_ig;
-          
-          if(imgEl && data.data.image_url) {
+          if (titleEl) titleEl.innerText = "- " + data.data.news_title;
+          if (capXEl) capXEl.value = data.data.caption_x;
+          if (capIGEl) capIGEl.value = data.data.caption_ig;
+
+          if (imgEl && data.data.image_url) {
             // Convert relative path to absolute using current API_BASE
             imgEl.src = data.data.image_url.startsWith('http') ? data.data.image_url : API_BASE.replace('/api', '') + data.data.image_url;
             imgEl.style.display = 'block';
-            if(imgPlaceholder) imgPlaceholder.style.display = 'none';
+            if (imgPlaceholder) imgPlaceholder.style.display = 'none';
           }
         } else {
-          if(hitlPanel) hitlPanel.style.display = 'none';
+          if (hitlPanel) hitlPanel.style.display = 'none';
         }
 
         if (data.status === 'error') {
-           if (pollingInterval) {
-               clearInterval(pollingInterval);
-               pollingInterval = null;
-               alert("Pipeline Error: " + data.error_message);
-               if(startContainer) startContainer.style.display = 'flex';
-               if(runningContainer) runningContainer.style.display = 'none';
-           }
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+            alert("Pipeline Error: " + data.error_message);
+            if (startContainer) startContainer.style.display = 'flex';
+            if (runningContainer) runningContainer.style.display = 'none';
+          }
         }
 
         if (data.status === 'complete') {
-           if (pollingInterval) {
-               clearInterval(pollingInterval);
-               pollingInterval = null;
-               setTimeout(() => {
-                 alert("Publishing sequence complete!");
-                 // Refresh to idle state
-                 fetch(`${API_BASE}/pipeline/reject`, {method: 'POST'}).then(() => window.location.reload());
-               }, 1000);
-           }
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+            setTimeout(() => {
+              alert("Publishing sequence complete!");
+              // Refresh to idle state
+              fetch(`${API_BASE}/pipeline/reject`, { method: 'POST' }).then(() => window.location.reload());
+            }, 1000);
+          }
         }
       });
   };
@@ -557,9 +559,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCancel.addEventListener('click', () => {
       fetch(`${API_BASE}/pipeline/cancel`, { method: 'POST' })
         .then(() => {
-          if(hitlPanel) hitlPanel.style.display = 'none';
-          if(startContainer) startContainer.style.display = 'flex';
-          if(runningContainer) runningContainer.style.display = 'none';
+          if (hitlPanel) hitlPanel.style.display = 'none';
+          if (startContainer) startContainer.style.display = 'flex';
+          if (runningContainer) runningContainer.style.display = 'none';
         });
     });
   }
@@ -570,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const originalText = btnRegen.textContent;
       btnRegen.textContent = 'REGENERATING...';
       btnRegen.disabled = true;
-      
+
       fetch(`${API_BASE}/pipeline/regen-image`, { method: 'POST' })
         .then(res => res.json())
         .then(data => {

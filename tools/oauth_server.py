@@ -136,6 +136,24 @@ def wait_for_callback(platform: str, timeout: int = 120) -> dict:
     Returns:
         Dict dengan 'code' atau 'error'.
     """
+    import os
+    
+    # Jika di production (Render), cek state global dari backend/app.py
+    if os.environ.get("RENDER"):
+        import sys
+        # Coba import _oauth_result dari backend.app
+        try:
+            from backend.app import _oauth_result as prod_oauth_result
+            start = time.time()
+            while time.time() - start < timeout:
+                if platform in prod_oauth_result:
+                    return prod_oauth_result[platform]
+                time.sleep(0.5)
+            return {"error": f"Timeout — tidak ada response dari {platform} dalam {timeout} detik."}
+        except ImportError:
+            pass
+
+    # Fallback ke local state
     start = time.time()
     while time.time() - start < timeout:
         if platform in _oauth_result:
@@ -148,6 +166,15 @@ def generate_state(platform: str) -> str:
     """Generate dan simpan CSRF state token."""
     state = secrets.token_urlsafe(32)
     _oauth_state[platform] = state
+    
+    import os
+    if os.environ.get("RENDER"):
+        try:
+            from backend.app import _oauth_state as prod_oauth_state
+            prod_oauth_state[platform] = state
+        except ImportError:
+            pass
+            
     return state
 
 
@@ -199,8 +226,10 @@ def initiate_x_login() -> dict:
     }
     auth_url = f"https://twitter.com/i/oauth2/authorize?{urlencode(auth_params)}"
 
-    # Start callback server
-    start_server(OAUTH_SERVER_PORT)
+    # Start callback server only if not running in production (Render)
+    import os
+    if not os.environ.get("RENDER"):
+        start_server(OAUTH_SERVER_PORT)
 
     logger.info(f"X OAuth initiated, auth_url ready")
     return {"auth_url": auth_url}
@@ -351,8 +380,10 @@ def initiate_ig_login() -> dict:
     }
     auth_url = f"https://www.facebook.com/v18.0/dialog/oauth?{urlencode(auth_params)}"
 
-    # Start callback server
-    start_server(OAUTH_SERVER_PORT)
+    # Start callback server only if not running in production (Render)
+    import os
+    if not os.environ.get("RENDER"):
+        start_server(OAUTH_SERVER_PORT)
 
     logger.info(f"IG OAuth initiated, auth_url ready")
     return {"auth_url": auth_url}

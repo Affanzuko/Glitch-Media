@@ -3,6 +3,18 @@ from flask_cors import CORS
 from backend.database import engine, SessionLocal, Base
 import backend.models as models
 import os
+import threading
+import secrets
+import hashlib
+import base64
+from urllib.parse import urlencode
+import requests
+
+# Shared state for OAuth flow
+_oauth_state: dict = {}
+_oauth_result: dict = {}
+_pkce_store: dict = {}
+_oauth_login_state = {}
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -96,6 +108,68 @@ def update_settings():
         db.close()
 
 # --- OAUTH API ENDPOINTS ---
+
+@app.route('/callback/x')
+def callback_x():
+    """Handle OAuth callback dari X/Twitter (production mode)."""
+    global _oauth_result, _oauth_state
+    
+    code = request.args.get("code")
+    state = request.args.get("state")
+    error = request.args.get("error")
+    
+    if error:
+        _oauth_result["x"] = {"error": error}
+        return _success_page("X/Twitter", success=False, error=error)
+    
+    if state != _oauth_state.get("x"):
+        _oauth_result["x"] = {"error": "State mismatch"}
+        return _success_page("X/Twitter", success=False, error="State mismatch")
+    
+    _oauth_result["x"] = {"code": code}
+    return _success_page("X/Twitter", success=True)
+
+@app.route('/callback/ig')
+def callback_ig():
+    """Handle OAuth callback dari Instagram/Facebook (production mode)."""
+    global _oauth_result
+    
+    code = request.args.get("code")
+    error = request.args.get("error")
+    error_reason = request.args.get("error_reason", "")
+    
+    if error:
+        _oauth_result["ig"] = {"error": f"{error}: {error_reason}"} 
+        return _success_page("Instagram", success=False, error=error_reason)
+    
+    _oauth_result["ig"] = {"code": code}
+    return _success_page("Instagram", success=True)
+
+def _success_page(platform: str, success: bool, error: str = "") -> str:
+    """HTML response page setelah OAuth callback."""
+    if success:
+        return f"""
+        <html>
+        <body style="font-family: sans-serif; text-align: center; padding: 60px;
+                     background: #1a1a2e; color: #fff;">
+            <h1 style="color: #4CAF50;">✅ Login {platform} Berhasil!</h1>
+            <p>Akun {platform} berhasil terkoneksi dengan Glitch Media.</p>
+            <p style="color: #888;">Tab ini bisa ditutup. Kembali ke aplikasi.</p>
+            <script>setTimeout(() => window.close(), 2000);</script>
+        </body>
+        </html>
+        """
+    else:
+        return f"""
+        <html>
+        <body style="font-family: sans-serif; text-align: center; padding: 60px;
+                     background: #1a1a2e; color: #fff;">
+            <h1 style="color: #f44336;">❌ Login {platform} Gagal</h1>
+            <p>Error: {error}</p>
+            <p style="color: #888;">Coba lagi dari aplikasi.</p>
+        </body>
+        </html>
+        """
 
 @app.route('/api/oauth/status', methods=['GET'])
 def get_oauth_status():

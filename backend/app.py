@@ -136,19 +136,157 @@ def callback_x():
 
 @app.route('/callback/ig')
 def callback_ig():
-    """Handle OAuth callback dari Instagram/Facebook (production mode)."""
+    """Handle OAuth callback dari Instagram/Facebook (production mode).
+    Langsung tukar code → short token → long token → cari IG Business Account ID.
+    Hasilnya di-log ke console (Render Logs) dan disimpan via oauth_manager.
+    """
     global _oauth_result
-    
+
     code = request.args.get("code")
     error = request.args.get("error")
     error_reason = request.args.get("error_reason", "")
-    
+
     if error:
-        _oauth_result["ig"] = {"error": f"{error}: {error_reason}"} 
+        _oauth_result["ig"] = {"error": f"{error}: {error_reason}"}
         return _success_page("Instagram", success=False, error=error_reason)
-    
-    _oauth_result["ig"] = {"code": code}
-    return _success_page("Instagram", success=True)
+
+    if not code:
+        _oauth_result["ig"] = {"error": "No code received"}
+        return _success_page("Instagram", success=False, error="No authorization code received")
+
+    try:
+        ig_app_id = os.environ.get("IG_OAUTH_APP_ID", "")
+        ig_app_secret = os.environ.get("IG_OAUTH_APP_SECRET", "")
+        ig_redirect_uri = os.environ.get("IG_OAUTH_REDIRECT_URI", "")
+
+        print(f"[IG OAuth] CODE DITERIMA: {code[:20]}...")
+
+        # 1. CODE → Short-Lived Token
+        r = requests.get(
+            "https://graph.facebook.com/v20.0/oauth/access_token",
+            params={
+                "client_id": ig_app_id,
+                "client_secret": ig_app_secret,
+                "redirect_uri": ig_redirect_uri,
+                "code": code,
+            },
+            timeout=30,
+        )
+        data = r.json()
+        if "access_token" not in data:
+            raise Exception(f"Gagal tukar code → short token: {data}")
+        short_token = data["access_token"]
+        print(f"[IG OAuth] Short-lived token OK")
+
+        # 2. Short Token → Long-Lived Token (60 hari)
+        r = requests.get(
+            "https://graph.facebook.com/v20.0/oauth/access_token",
+            params={
+                "grant_type": "fb_exchange_token",
+                "client_id": ig_app_id,
+                "client_secret": ig_app_secret,
+                "fb_exchange_token": short_token,
+            },
+            timeout=30,
+        )
+        data = r.json()
+        long_token = data.get("access_token", short_token)
+        print(f"[IG OAuth] Long-lived token OK")
+
+        # 3. Ambil Facebook Pages
+        r = requests.get(
+            "https://graph.facebook.com/v20.0/me/accounts",
+            params={"access_token": long_token},
+            timeout=15,
+        )
+        pages_data = r.json()
+        pages = pages_data.get("data", [])
+
+        if not pages:
+            raise Exception("Tidak ada Facebook Page ditemukan. Pastikan akun IG terhubung ke FB Page.")
+
+        page = pages[0]
+        page_access_token = page.get("access_token", long_token)
+
+        # 4. Cari Instagram Business Account ID dari Page
+        r = requests.get(
+            f"https://graph.facebook.com/v20.0/{page['id']}",
+            params={
+                "fields": "instagram_business_account",
+                "access_token": long_token,
+            },
+            timeout=15,
+        )
+        ig_data = r.json()
+
+        if "instagram_business_account" not in ig_data:
+            raise Exception(
+                f"Facebook Page '{page.get('name', 'Unknown')}' tidak punya Instagram Business Account. "
+                "Pastikan akun IG sudah diubah ke Bisnis/Creator dan terhubung ke FB Page."
+            )
+
+        ig_business_id = ig_data["instagram_business_account"]["id"]
+
+        # ══════════════════════════════════════════════════════════════════
+        # LOG KE RENDER CONSOLE — copy paste dari sini ke .env
+        # ══════════════════════════════════════════════════════════════════
+        print("=" * 60)
+        print("═══ INSTAGRAM API CREDENTIALS (copy ke .env) ═══")
+        print("=" * 60)
+        print(f"INSTAGRAM_ACCESS_TOKEN={page_access_token}")
+        print(f"INSTAGRAM_BUSINESS_ACCOUNT_ID={ig_business_id}")
+        print("=" * 60)
+
+        # Simpan juga ke oauth_manager agar langsung bisa dipakai
+        try:
+            import time as _time
+            from tools.oauth_manager import save_tokens
+            save_tokens("ig", {
+                "access_token": page_access_token,
+                "long_lived_token": long_token,
+                "expires_at": _time.time() + 5184000,  # 60 hari
+                "ig_business_account_id": ig_business_id,
+                "account_info": {
+                    "username": "ig_user",
+                    "display_name": page.get("name", "Instagram"),
+                    "account_id": ig_business_id,
+                },
+            })
+            print("[IG OAuth] Token juga disimpan ke oauth_manager ✅")
+        except Exception as save_err:
+            print(f"[IG OAuth] Warning: gagal simpan ke oauth_manager: {save_err}")
+
+        # Simpan code juga ke _oauth_result agar complete_ig_login tidak error
+        _oauth_result["ig"] = {"code": code}
+
+        # Tampilkan halaman sukses dengan info ID
+        return f"""
+        <html>
+        <body style="font-family: sans-serif; text-align: center; padding: 60px;
+                     background: #1a1a2e; color: #fff;">
+            <h1 style="color: #4CAF50;">✅ Login Instagram Berhasil!</h1>
+            <p>Akun Instagram berhasil terkoneksi dengan Glitch Media.</p>
+            <p style="color: #888;">Cek <b>Render Dashboard → Logs</b> untuk melihat token.</p>
+            <p style="font-size: 12px; color: #666;">Business Account ID: {ig_business_id}</p>
+            <script>setTimeout(() => window.close(), 5000);</script>
+        </body>
+        </html>
+        """
+
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[IG OAuth] GAGAL TUKAR TOKEN: {error_msg}")
+        _oauth_result["ig"] = {"error": error_msg}
+        return f"""
+        <html>
+        <body style="font-family: sans-serif; text-align: center; padding: 60px;
+                     background: #1a1a2e; color: #fff;">
+            <h1 style="color: #f44336;">❌ Login Instagram Gagal</h1>
+            <p style="color: #ff9800;">{error_msg}</p>
+            <p style="color: #888;">Coba lagi dari aplikasi.</p>
+        </body>
+        </html>
+        """
 
 def _success_page(platform: str, success: bool, error: str = "") -> str:
     """HTML response page setelah OAuth callback."""
